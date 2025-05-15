@@ -1,7 +1,7 @@
 <details>
-<summary>🇹🇼 點擊展開／收合繁體中文說明</summary>
+<summary>🇹🇼 點擊展開／收起繁體中文說明</summary>
 
-# Setsuna Discord Bot（賽茲娜 Discord 機器人）
+# Setsuna Discord Bot（剎那 Discord 機器人）
 
 一個能連接 DeepSeek API 並在指定頻道與用戶聊天的 Discord 機器人。
 
