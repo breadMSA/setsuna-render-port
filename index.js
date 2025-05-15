@@ -284,6 +284,9 @@ client.on('messageCreate', async (message) => {
   const channelConfig = activeChannels.get(message.channelId);
   if (!channelConfig) return;
   
+  // Show typing indicator immediately
+  await message.channel.sendTyping();
+  
   // Get message history (last 50 messages)
   const messages = await message.channel.messages.fetch({ limit: 50 });
   const messageHistory = Array.from(messages.values())
@@ -309,23 +312,17 @@ client.on('messageCreate', async (message) => {
     ];
     
     // Call DeepSeek API via OpenRouter
-    const apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-    const requestBody = {
-      model: 'deepseek/deepseek-r1:free',
-      messages: formattedMessages,
-      max_tokens: 1000
-    };
-    
-    // Store formattedMessages in a variable accessible for retries
-    const currentFormattedMessages = formattedMessages;
-    
-    const deepseekResponse = await fetch(apiUrl, {
+    const deepseekResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${getCurrentApiKey()}`
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        model: 'deepseek/deepseek-r1:free',
+        messages: formattedMessages,
+        max_tokens: 1000
+      })
     });
     
     const data = await deepseekResponse.json();
@@ -352,7 +349,7 @@ client.on('messageCreate', async (message) => {
       throw new Error('Empty response from API');
     }
     
-    // Show typing indicator
+    // Refresh typing indicator
     await message.channel.sendTyping();
     
     // Send the response
@@ -364,39 +361,68 @@ client.on('messageCreate', async (message) => {
   } catch (error) {
     console.error('Error generating response:', error);
     
-    // Check if it's a rate limit error
-    if (error.message && error.message.includes('Rate limit exceeded')) {
-      // If we have more API keys to try
-      if (DEEPSEEK_API_KEYS.length > 1) {
+    // Check if it's a rate limit error or any other error (we'll try all keys)
+    if (DEEPSEEK_API_KEYS.length > 1) {
+      // Try all remaining API keys before giving up
+      const startingKeyIndex = currentApiKeyIndex;
+      let keysTried = 0;
+      
+      while (keysTried < DEEPSEEK_API_KEYS.length - 1) { // Try all keys except the one that just failed
         const nextKey = getNextApiKey();
-        console.log('Rate limit reached, switching to next API key...');
+        keysTried++;
+        
+        // Skip if we've looped back to the starting key
+        if (currentApiKeyIndex === startingKeyIndex) continue;
+        
+        console.log(`API request failed, trying with API key ${currentApiKeyIndex + 1}/${DEEPSEEK_API_KEYS.length}...`);
+        
         try {
+          // Refresh typing indicator
+          await message.channel.sendTyping();
+          
           // Retry the request with the new key
-        const retryResponse = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${nextKey}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek/deepseek-chat:free',
-            messages: currentFormattedMessages,
-            max_tokens: 1000
-          })
+          const retryResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${nextKey}`
+            },
+            body: JSON.stringify({
+              model: 'deepseek/deepseek-r1:free',
+              messages: formattedMessages,
+              max_tokens: 1000
+            })
           });
           
           const retryData = await retryResponse.json();
+          
+          // Check if response contains error
+          if (retryData.error) {
+            console.log(`API key ${currentApiKeyIndex + 1} error: ${retryData.error.message || 'Unknown error'}`);
+            continue; // Try next key
+          }
+          
+          // Process successful response
+          let responseContent = null;
           if (retryData.choices && retryData.choices[0] && retryData.choices[0].message) {
-            await message.channel.send(retryData.choices[0].message.content);
-            return;
+            responseContent = retryData.choices[0].message.content;
+          } else if (retryData.response) {
+            responseContent = retryData.response;
+          }
+          
+          if (responseContent) {
+            await message.channel.send(responseContent);
+            return; // Success! Exit the function
           }
         } catch (retryError) {
-          console.error('Error in retry attempt:', retryError);
+          console.error(`Error with API key ${currentApiKeyIndex + 1}:`, retryError);
+          // Continue to next key
         }
       }
     }
     
-    message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
+    // If we get here, all keys failed or there was only one key
+    await message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
   }
 });
 
