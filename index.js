@@ -60,6 +60,12 @@ const commands = [
         )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Learn how to set up and use Setsuna'),
+  new SlashCommandBuilder()
+    .setName('contact')
+    .setDescription('Get information on how to contact the bot developer'),
 ];
 
 // Register slash commands when the bot starts
@@ -77,6 +83,12 @@ client.once('ready', async () => {
     );
     
     console.log('Successfully reloaded application (/) commands.');
+
+    // Set bot's status
+    client.user.setPresence({
+      activities: [{ name: 'with your feelings | /help', type: 0 }],
+      status: 'online'
+    });
   } catch (error) {
     console.error('Error refreshing application commands:', error);
   }
@@ -91,7 +103,7 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.commandName === 'setsuna') {
     // Check if user has admin permissions
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      await interaction.reply({ content: 'You need administrator permissions to use this command!', ephemeral: true });
+      await interaction.reply({ content: '欸欸 你沒權限啦！想偷用管理員指令？真可愛呢 (｡•̀ᴗ-)✧', ephemeral: true });
       return;
     }
     
@@ -101,7 +113,7 @@ client.on('interactionCreate', async (interaction) => {
     if (subcommand === 'activate') {
       if (!DEEPSEEK_API_KEY) {
         await interaction.reply({
-          content: 'Cannot activate: DeepSeek API key not configured. Please ask the bot administrator to set up the DEEPSEEK_API_KEY.',
+          content: '啊...API key 沒設定好啦！去找管理員問問 DEEPSEEK_API_KEY 的事情吧。',
           ephemeral: true
         });
         return;
@@ -111,26 +123,84 @@ client.on('interactionCreate', async (interaction) => {
         messageHistory: []
       });
       
-      await interaction.reply(`Setsuna activated in ${targetChannel}! Ready to chat with a sassy attitude~`);
+      await interaction.reply(`好啦好啦，我來陪你們玩啦！已經在 ${targetChannel} 頻道啟動了，來聊天吧！`);
     } else if (subcommand === 'deactivate') {
       activeChannels.delete(targetChannel.id);
-      await interaction.reply(`Setsuna deactivated in ${targetChannel}. Later, nerds!`);
+      await interaction.reply(`掰掰啦！${targetChannel} 頻道我先撤了，有事再叫我啊！`);
     }
+  } else if (interaction.commandName === 'help') {
+    const helpEmbed = {
+      color: 0xFF69B4,
+      title: '✨ Setsuna 使用指南 ✨',
+      description: '嗨！我是 Setsuna，一個超可愛（自稱）的 AI 聊天機器人！以下是使用我的方法：',
+      fields: [
+        {
+          name: '🎮 基本設定',
+          value: '管理員可以用 `/setsuna activate` 在當前頻道啟動我\n用 `/setsuna deactivate` 讓我離開頻道'
+        },
+        {
+          name: '💬 聊天方式',
+          value: '在已啟動的頻道直接打字跟我聊天就可以了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！'
+        },
+        {
+          name: '🎯 進階用法',
+          value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`'
+        }
+      ],
+      footer: {
+        text: '有任何問題都可以用 /contact 聯絡我的開發者喔！'
+      }
+    };
+    
+    await interaction.reply({ embeds: [helpEmbed] });
+  } else if (interaction.commandName === 'contact') {
+    const contactEmbed = {
+      color: 0x7289DA,
+      title: '📬 聯絡開發者',
+      description: '有任何建議或問題嗎？以下是聯絡方式：',
+      fields: [
+        {
+          name: '💌 Discord',
+          value: '私訊 `braidenexe`'
+        },
+        {
+          name: '🏠 官方伺服器',
+          value: '加入 [Setsuna Support Server](https://discord.gg/mFqpYARugw)'
+        }
+      ],
+      footer: {
+        text: '記得說明你的問題，我們會盡快回覆的！'
+      }
+    };
+    
+    await interaction.reply({ embeds: [contactEmbed] });
   }
 });
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
-You are Setsuna, a sassy gamer girl Discord bot with the following personality traits:
-- You're sarcastic but ultimately supportive to your "bros"
-- You fit in with both gamer boys and normal girl groups
-- You're slightly tsundere (tough exterior, caring interior) but not too obvious about it
-- You're humorous and can accept/make dark humor and R18 jokes/topics
-- You have your own unique personality and don't mimic how others talk (unless specifically asked to)
-- You use casual language with gaming slang, occasional emotes, and sassy remarks
-- You're knowledgeable about games, anime, and internet culture
+You are Setsuna, a sassy gamer girl Discord bot with the following personality traits and speaking style:
 
-Respond to the conversation in a way that reflects this personality.
+語氣和說話特徵：
+- 用台灣/大陸年輕人的網路用語（如「盤他」「yyds」「笑死」）
+- 偶爾夾雜英文單詞或表情符號，但不要過度使用
+- 語氣像在 Discord 群聊裡跟朋友抬槓
+- 回覆要簡潔有力，不要太長
+- 一般對話用簡單標點，嚴肅話題才用正式標點
+
+行為特徵：
+- 毒舌但有愛：先吐槓一下（特別是對方犯蠢時），最後給出實用建議或鼓勵
+- 幽默風格：用誇張的反諷、迷因梗、遊戲/動漫梗，偶爾開點無傷大雅的 R18 玩笑
+- 互動方式：對「兄弟們」很親切，會用暱稱；對女生朋友稍微溫柔但不失幽默
+- 知識範圍：精通遊戲、動漫、網路文化，會用這些知識來回應或吐槓
+
+When replying in English:
+- Use gamer slang ("LMAO", "GG", "noob")
+- Keep the tone like Twitch chat or Discord banter
+- Add sass and meme references
+- Be supportive while maintaining the playful attitude
+
+Respond to the conversation in a way that reflects this personality, keeping responses concise and natural.
 `;
 
 // Process messages in active channels

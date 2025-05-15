@@ -1,15 +1,22 @@
 # Setsuna Discord Bot
 
-A Discord bot that connects to DeepSeek or Gemini API and chats with users in specific channels.
+A Discord bot that connects to DeepSeek API and chats with users in specific channels.
 
 ## Features
 
 - Connects to Discord and responds to messages in configured channels
-- Integrates with Gemini API (and optionally DeepSeek API)
+- Integrates with DeepSeek API
 - Provides context-aware responses by analyzing channel message history
 - Simple channel activation/deactivation commands
 
 ## Setup
+### Invite Setsuna
+You can invite pre-built Setsuna to your Discord server using the following link:
+[Invite Setsuna to your Discord server](https://discord.com/oauth2/authorize?client_id=1372437324595462206&permissions=1689917160152128&integration_type=0&scope=applications.commands+bot) 
+
+
+For server setup tutorial, please refer to the usage below.
+
 
 ### Local Development
 
@@ -115,8 +122,9 @@ If you have a server or computer that can run 24/7:
 
 Once the bot is running, you can use the following commands in your Discord server:
 
-- `!setsuna activate [model]` - Activate the bot in the current channel (model can be 'gemini' or 'deepseek', defaults to 'gemini')
-- `!setsuna deactivate` - Deactivate the bot in the current channel
+- `/setsuna activate #channel-name` - Activate the bot in designated channel.
+- `/setsuna deactivate #channel-name` - Deactivate the bot in the current channel
+- Leave #channel-name empty if you want to activate/deactivate the bot in the current channel.
 
 ## License
 
