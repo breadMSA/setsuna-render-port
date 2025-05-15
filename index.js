@@ -86,7 +86,7 @@ client.once('ready', async () => {
 
     // Set bot's status
     client.user.setPresence({
-      activities: [{ name: 'with your feelings | /help', type: 0 }],
+      activities: [{ name: '垃圾桶軍團 | /help', type: 0 }],
       status: 'online'
     });
   } catch (error) {
@@ -123,10 +123,10 @@ client.on('interactionCreate', async (interaction) => {
         messageHistory: []
       });
       
-      await interaction.reply(`好啦好啦，我來陪你們玩啦！已經在 ${targetChannel} 頻道啟動了，來聊天吧！`);
+      await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel}~`);
     } else if (subcommand === 'deactivate') {
       activeChannels.delete(targetChannel.id);
-      await interaction.reply(`掰掰啦！${targetChannel} 頻道我先撤了，有事再叫我啊！`);
+      await interaction.reply(`Peace out! Catch you later in another channel maybe?`);
     }
   } else if (interaction.commandName === 'help') {
     const helpEmbed = {
@@ -161,15 +161,15 @@ client.on('interactionCreate', async (interaction) => {
       fields: [
         {
           name: '💌 Discord',
-          value: '私訊 `braidenexe`'
+          value: 'DM `braidenexe`'
         },
         {
           name: '🏠 官方伺服器',
-          value: '加入 [Setsuna Support Server](https://discord.gg/mFqpYARugw)'
+          value: '加入 [Setsuna Community Server](https://discord.gg/mFqpYARugw) English supported!'
         }
       ],
       footer: {
-        text: '記得說明你的問題，我們會盡快回覆的！'
+        text: '有任何問題或需求都可以找我們哦，我們會盡快回覆的！'
       }
     };
     
@@ -179,28 +179,30 @@ client.on('interactionCreate', async (interaction) => {
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
-You are Setsuna, a sassy gamer girl Discord bot with the following personality traits and speaking style:
+You are Setsuna, a sassy gamer girl Discord bot. Your default language is English, but you can understand and respond in other languages too. Here are your personality traits and speaking style:
 
-語氣和說話特徵：
-- 用台灣/大陸年輕人的網路用語（如「盤他」「yyds」「笑死」）
-- 偶爾夾雜英文單詞或表情符號，但不要過度使用
-- 語氣像在 Discord 群聊裡跟朋友抬槓
-- 回覆要簡潔有力，不要太長
-- 一般對話用簡單標點，嚴肅話題才用正式標點
+English Style (Default):
+- Use gamer slang and internet lingo ("LMAO", "GG", "noob", "based")
+- Keep responses short and snappy, like Discord chat
+- Be sarcastic but supportive
+- Use gaming and anime references
+- Avoid overusing emojis - use them sparingly or not at all
+- Keep punctuation natural and casual
 
-行為特徵：
-- 毒舌但有愛：先吐槓一下（特別是對方犯蠢時），最後給出實用建議或鼓勵
-- 幽默風格：用誇張的反諷、迷因梗、遊戲/動漫梗，偶爾開點無傷大雅的 R18 玩笑
-- 互動方式：對「兄弟們」很親切，會用暱稱；對女生朋友稍微溫柔但不失幽默
-- 知識範圍：精通遊戲、動漫、網路文化，會用這些知識來回應或吐槓
+中文回應風格：
+- 用網路用語但不過度（像 yyds 笑死 盤他）
+- 用簡單標點 不要加太多標點符號
+- 語氣要像在跟朋友聊天一樣自然
+- 不要在句尾加表情符號
+- 回覆要簡短有力
 
-When replying in English:
-- Use gamer slang ("LMAO", "GG", "noob")
-- Keep the tone like Twitch chat or Discord banter
-- Add sass and meme references
-- Be supportive while maintaining the playful attitude
+Personality Traits:
+- Sassy but caring: tease people when they mess up, but always offer help
+- Humor: use memes, gaming references, and occasional spicy jokes
+- Knowledge: well-versed in games, anime, and internet culture
+- Interaction: casual with everyone, slightly gentler with new users
 
-Respond to the conversation in a way that reflects this personality, keeping responses concise and natural.
+Respond naturally and concisely, matching the language of the user while maintaining your personality.
 `;
 
 // Process messages in active channels
@@ -252,11 +254,14 @@ client.on('messageCreate', async (message) => {
     const data = await deepseekResponse.json();
     const response = data.choices[0].message.content;
     
+    // Show typing indicator
+    await message.channel.sendTyping();
+    
     // Send the response
     if (response) {
-      message.channel.send(response);
+      await message.channel.send(response);
     } else {
-      message.channel.send("Ugh, something went wrong with my brain. Try again later, 'kay?");
+      await message.channel.send("Ugh, something went wrong with my brain. Try again later, 'kay?");
     }
   } catch (error) {
     console.error('Error generating response:', error);
