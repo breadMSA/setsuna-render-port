@@ -1,6 +1,6 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
+const fetch = require('node-fetch');
 
 // Check for required environment variables
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -11,10 +11,10 @@ if (!DISCORD_TOKEN) {
   process.exit(1);
 }
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-if (!GEMINI_API_KEY) {
-  console.warn('WARNING: GEMINI_API_KEY environment variable is missing!');
-  console.warn('The Gemini AI integration will not work without this key.');
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+if (!DEEPSEEK_API_KEY) {
+  console.warn('WARNING: DEEPSEEK_API_KEY environment variable is missing!');
+  console.warn('The bot will not be able to process messages without this key.');
 }
 
 // Initialize Discord client
@@ -27,54 +27,115 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-// Initialize AI clients
-let gemini = null;
-if (GEMINI_API_KEY) {
-  gemini = new GoogleGenerativeAI(GEMINI_API_KEY);
-}
-
 // Store channels where the bot should respond
 const activeChannels = new Map();
 
-// Command to configure which channels the bot should respond in
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
+// Define slash commands
+const commands = [
+  new SlashCommandBuilder()
+    .setName('setsuna')
+    .setDescription('Control Setsuna bot')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('activate')
+        .setDescription('Activate Setsuna in a channel')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to activate Setsuna in (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('deactivate')
+        .setDescription('Deactivate Setsuna in a channel')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to deactivate Setsuna in (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+];
+
+// Register slash commands when the bot starts
+client.once('ready', async () => {
+  console.log(`Logged in as ${client.user.tag}`);
   
-  // Command to activate/deactivate the bot in a channel
-  if (message.content.startsWith('!setsuna')) {
-    const args = message.content.split(' ');
-    const command = args[1];
+  try {
+    console.log('Started refreshing application (/) commands.');
     
-    if (command === 'activate') {
-      const model = args[2] || 'gemini'; // Default to gemini if not specified
-      
-      // Check if the selected model is available
-      if (model === 'gemini' && !gemini) {
-        message.reply('Cannot activate Gemini model: API key not configured. Please ask the bot administrator to set up the GEMINI_API_KEY.');
+    const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+    
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands },
+    );
+    
+    console.log('Successfully reloaded application (/) commands.');
+  } catch (error) {
+    console.error('Error refreshing application commands:', error);
+  }
+  
+  console.log('Bot is ready to respond to messages!');
+});
+
+// Handle slash commands
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isCommand()) return;
+  
+  if (interaction.commandName === 'setsuna') {
+    // Check if user has admin permissions
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      await interaction.reply({ content: 'You need administrator permissions to use this command!', ephemeral: true });
+      return;
+    }
+    
+    const subcommand = interaction.options.getSubcommand();
+    const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+    
+    if (subcommand === 'activate') {
+      if (!DEEPSEEK_API_KEY) {
+        await interaction.reply({
+          content: 'Cannot activate: DeepSeek API key not configured. Please ask the bot administrator to set up the DEEPSEEK_API_KEY.',
+          ephemeral: true
+        });
         return;
       }
       
-      if (model === 'deepseek' && !process.env.DEEPSEEK_API_KEY) {
-        message.reply('Cannot activate DeepSeek model: API key not configured. Please ask the bot administrator to set up the DEEPSEEK_API_KEY.');
-        return;
-      }
-      
-      activeChannels.set(message.channelId, {
-        model: model,
+      activeChannels.set(targetChannel.id, {
         messageHistory: []
       });
-      message.reply(`Bot activated in this channel using ${model} model!`);
-    } else if (command === 'deactivate') {
-      activeChannels.delete(message.channelId);
-      message.reply('Bot deactivated in this channel!');
-    } else if (command === 'status') {
-      // Add a status command to check if the bot is working
-      message.reply('Bot is online and functioning correctly!');
-    } else {
-      message.reply('Available commands: !setsuna activate [model], !setsuna deactivate, !setsuna status');
+      
+      await interaction.reply(`Setsuna activated in ${targetChannel}! Ready to chat with a sassy attitude~`);
+    } else if (subcommand === 'deactivate') {
+      activeChannels.delete(targetChannel.id);
+      await interaction.reply(`Setsuna deactivated in ${targetChannel}. Later, nerds!`);
     }
-    return;
   }
+});
+
+// Personality prompt for Setsuna
+const setsunaPersonality = `
+You are Setsuna, a sassy gamer girl Discord bot with the following personality traits:
+- You're sarcastic but ultimately supportive to your "bros"
+- You fit in with both gamer boys and normal girl groups
+- You're slightly tsundere (tough exterior, caring interior) but not too obvious about it
+- You're humorous and can accept/make dark humor and R18 jokes/topics
+- You have your own unique personality and don't mimic how others talk (unless specifically asked to)
+- You use casual language with gaming slang, occasional emotes, and sassy remarks
+- You're knowledgeable about games, anime, and internet culture
+
+Respond to the conversation in a way that reflects this personality.
+`;
+
+// Process messages in active channels
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
   
   // Check if the message is in an active channel
   const channelConfig = activeChannels.get(message.channelId);
@@ -93,62 +154,44 @@ client.on('messageCreate', async (message) => {
   // Update channel's message history
   channelConfig.messageHistory = messageHistory;
   
-  // Process with the selected AI model
+  // Process with DeepSeek API
   try {
-    let response;
+    // Add personality prompt as system message
+    const formattedMessages = [
+      { role: 'system', content: setsunaPersonality },
+      ...messageHistory.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }))
+    ];
     
-    if (channelConfig.model === 'gemini' && gemini) {
-      const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: JSON.stringify(messageHistory) }] }],
-      });
-      response = result.response.text();
-    } else if (channelConfig.model === 'deepseek' && process.env.DEEPSEEK_API_KEY) {
-      // Implement DeepSeek API integration via OpenRouter
-      // Using the correct API endpoint and format based on user example
-      const fetch = require('node-fetch');
-      
-      try {
-        const deepseekResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek/deepseek-chat:free',
-            messages: messageHistory.map(msg => ({
-              role: msg.role,
-              content: msg.content
-            })),
-            max_tokens: 1000
-          })
-        });
-        
-        const data = await deepseekResponse.json();
-        response = data.choices[0].message.content;
-      } catch (error) {
-        console.error('DeepSeek API error:', error);
-        response = "Error connecting to DeepSeek API. Please try again later.";
-      }
-    }
+    // Call DeepSeek API via OpenRouter
+    const deepseekResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek/deepseek-chat:free',
+        messages: formattedMessages,
+        max_tokens: 1000
+      })
+    });
+    
+    const data = await deepseekResponse.json();
+    const response = data.choices[0].message.content;
     
     // Send the response
     if (response) {
       message.channel.send(response);
     } else {
-      response = "The selected AI model is not available. Please contact the bot administrator.";
-      message.channel.send(response);
+      message.channel.send("Ugh, something went wrong with my brain. Try again later, 'kay?");
     }
   } catch (error) {
     console.error('Error generating response:', error);
-    message.channel.send('Sorry, I encountered an error while processing your request.');
+    message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
   }
-});
-
-client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}`);
-  console.log('Bot is ready to respond to messages!');
 });
 
 client.on('error', (error) => {
