@@ -303,10 +303,28 @@ client.on('messageCreate', async (message) => {
     });
     
     const data = await deepseekResponse.json();
-    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Invalid response from API');
+    
+    // Check if response contains error
+    if (data.error) {
+      throw new Error(data.error.message || 'API returned an error');
     }
-    const response = data.choices[0].message.content;
+    
+    // OpenRouter wraps the response differently from direct API calls
+    let response;
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      // Standard OpenAI format
+      response = data.choices[0].message.content;
+    } else if (data.response) {
+      // Alternative response format
+      response = data.response;
+    } else {
+      console.error('Unexpected API response structure:', JSON.stringify(data));
+      throw new Error('Unexpected API response structure');
+    }
+    
+    if (!response) {
+      throw new Error('Empty response from API');
+    }
     
     // Show typing indicator
     await message.channel.sendTyping();
