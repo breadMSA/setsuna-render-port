@@ -11,10 +11,30 @@ if (!DISCORD_TOKEN) {
   process.exit(1);
 }
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-if (!DEEPSEEK_API_KEY) {
-  console.warn('WARNING: DEEPSEEK_API_KEY environment variable is missing!');
-  console.warn('The bot will not be able to process messages without this key.');
+// Load all API keys
+const DEEPSEEK_API_KEYS = [
+  process.env.DEEPSEEK_API_KEY,
+  process.env.DEEPSEEK_API_KEY_2,
+  process.env.DEEPSEEK_API_KEY_3
+].filter(key => key); // Filter out undefined/null keys
+
+if (DEEPSEEK_API_KEYS.length === 0) {
+  console.warn('WARNING: No DEEPSEEK_API_KEY environment variables are set!');
+  console.warn('The bot will not be able to process messages without at least one key.');
+}
+
+// Keep track of current API key index
+let currentApiKeyIndex = 0;
+
+// Function to get next API key
+function getNextApiKey() {
+  currentApiKeyIndex = (currentApiKeyIndex + 1) % DEEPSEEK_API_KEYS.length;
+  return DEEPSEEK_API_KEYS[currentApiKeyIndex];
+}
+
+// Function to get current API key
+function getCurrentApiKey() {
+  return DEEPSEEK_API_KEYS[currentApiKeyIndex];
 }
 
 // Initialize Discord client
@@ -160,7 +180,7 @@ client.on('interactionCreate', async (interaction) => {
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
     
     if (subcommand === 'activate') {
-      if (!DEEPSEEK_API_KEY) {
+      if (DEEPSEEK_API_KEYS.length === 0) {
         await interaction.reply({
           content: '啊...API key 沒設定好啦！去找管理員問問 DEEPSEEK_API_KEY 的事情吧。',
           ephemeral: true
@@ -293,7 +313,7 @@ client.on('messageCreate', async (message) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        'Authorization': `Bearer ${getCurrentApiKey()}`
       },
       body: JSON.stringify({
         model: 'deepseek/deepseek-r1:free',
@@ -337,6 +357,39 @@ client.on('messageCreate', async (message) => {
     }
   } catch (error) {
     console.error('Error generating response:', error);
+    
+    // Check if it's a rate limit error
+    if (error.message && error.message.includes('Rate limit exceeded')) {
+      // If we have more API keys to try
+      if (DEEPSEEK_API_KEYS.length > 1) {
+        const nextKey = getNextApiKey();
+        console.log('Rate limit reached, switching to next API key...');
+        try {
+          // Retry the request with the new key
+          const retryResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${nextKey}`
+            },
+            body: JSON.stringify({
+              model: 'deepseek/deepseek-chat:free',
+              messages: formattedMessages,
+              max_tokens: 1000
+            })
+          });
+          
+          const retryData = await retryResponse.json();
+          if (retryData.choices && retryData.choices[0] && retryData.choices[0].message) {
+            await message.channel.send(retryData.choices[0].message.content);
+            return;
+          }
+        } catch (retryError) {
+          console.error('Error in retry attempt:', retryError);
+        }
+      }
+    }
+    
     message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
   }
 });
