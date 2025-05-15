@@ -30,6 +30,52 @@ const client = new Client({
 // Store channels where the bot should respond
 const activeChannels = new Map();
 
+// Status rotation settings
+const statusList = [
+  'with your feelings',
+  '垃圾桶軍團',
+  'Honkai: Star Rail',
+  'Valorant',
+  '死線前趕作業遊戲'
+];
+
+// Function to set random status
+function setRandomStatus() {
+  const randomStatus = statusList[Math.floor(Math.random() * statusList.length)];
+  client.user.setPresence({
+    activities: [{ name: `${randomStatus} | /help`, type: 0 }],
+    status: 'online'
+  });
+}
+
+// Load active channels from file if exists
+const fs = require('fs');
+const CHANNELS_FILE = './active_channels.json';
+
+function loadActiveChannels() {
+  try {
+    if (fs.existsSync(CHANNELS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
+      for (const [channelId, config] of Object.entries(data)) {
+        activeChannels.set(channelId, config);
+      }
+      console.log('Loaded active channels from file');
+    }
+  } catch (error) {
+    console.error('Error loading active channels:', error);
+  }
+}
+
+function saveActiveChannels() {
+  try {
+    const data = Object.fromEntries(activeChannels);
+    fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data));
+    console.log('Saved active channels to file');
+  } catch (error) {
+    console.error('Error saving active channels:', error);
+  }
+}
+
 // Define slash commands
 const commands = [
   new SlashCommandBuilder()
@@ -84,11 +130,14 @@ client.once('ready', async () => {
     
     console.log('Successfully reloaded application (/) commands.');
 
-    // Set bot's status
-    client.user.setPresence({
-      activities: [{ name: '垃圾桶軍團 | /help', type: 0 }],
-      status: 'online'
-    });
+    // Load saved active channels
+    loadActiveChannels();
+    
+    // Set initial random status
+    setRandomStatus();
+    
+    // Start status rotation
+    setInterval(setRandomStatus, 120000); // 2 minutes
   } catch (error) {
     console.error('Error refreshing application commands:', error);
   }
@@ -122,10 +171,12 @@ client.on('interactionCreate', async (interaction) => {
       activeChannels.set(targetChannel.id, {
         messageHistory: []
       });
+      saveActiveChannels();
       
       await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel}~`);
     } else if (subcommand === 'deactivate') {
       activeChannels.delete(targetChannel.id);
+      saveActiveChannels();
       await interaction.reply(`Peace out! Catch you later in another channel maybe?`);
     }
   } else if (interaction.commandName === 'help') {
@@ -252,6 +303,9 @@ client.on('messageCreate', async (message) => {
     });
     
     const data = await deepseekResponse.json();
+    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Invalid response from API');
+    }
     const response = data.choices[0].message.content;
     
     // Show typing indicator
