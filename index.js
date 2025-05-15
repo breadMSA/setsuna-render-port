@@ -104,8 +104,13 @@ client.on('messageCreate', async (message) => {
       });
       response = result.response.text();
     } else if (channelConfig.model === 'deepseek' && process.env.DEEPSEEK_API_KEY) {
+<<<<<<< HEAD
       // Implement DeepSeek API integration via OpenRouter
       // Using the correct API endpoint and format based on user example
+=======
+      // Implement DeepSeek API integration
+      // This would require using fetch or axios to call the DeepSeek API
+>>>>>>> 0ed03eadd2b62ba185b1d5dae4670f5a4fed0563
       const fetch = require('node-fetch');
       
       try {
@@ -171,4 +176,8 @@ console.log('Connecting to Discord...');
 client.login(DISCORD_TOKEN).catch(error => {
   console.error('Failed to login to Discord:', error);
   process.exit(1);
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> 0ed03eadd2b62ba185b1d5dae4670f5a4fed0563
