@@ -287,6 +287,7 @@ client.on('messageCreate', async (message) => {
   // Show typing indicator immediately
   await message.channel.sendTyping();
   
+
   // Get message history (last 50 messages)
   const messages = await message.channel.messages.fetch({ limit: 50 });
   const messageHistory = Array.from(messages.values())
@@ -349,7 +350,7 @@ client.on('messageCreate', async (message) => {
       throw new Error('Empty response from API');
     }
     
-    // Refresh typing indicator
+    // Show typing indicator
     await message.channel.sendTyping();
     
     // Send the response
@@ -361,25 +362,13 @@ client.on('messageCreate', async (message) => {
   } catch (error) {
     console.error('Error generating response:', error);
     
-    // Check if it's a rate limit error or any other error (we'll try all keys)
-    if (DEEPSEEK_API_KEYS.length > 1) {
-      // Try all remaining API keys before giving up
-      const startingKeyIndex = currentApiKeyIndex;
-      let keysTried = 0;
-      
-      while (keysTried < DEEPSEEK_API_KEYS.length - 1) { // Try all keys except the one that just failed
+    // Check if it's a rate limit error
+    if (error.message && error.message.includes('Rate limit exceeded')) {
+      // If we have more API keys to try
+      if (DEEPSEEK_API_KEYS.length > 1) {
         const nextKey = getNextApiKey();
-        keysTried++;
-        
-        // Skip if we've looped back to the starting key
-        if (currentApiKeyIndex === startingKeyIndex) continue;
-        
-        console.log(`API request failed, trying with API key ${currentApiKeyIndex + 1}/${DEEPSEEK_API_KEYS.length}...`);
-        
+        console.log('Rate limit reached, switching to next API key...');
         try {
-          // Refresh typing indicator
-          await message.channel.sendTyping();
-          
           // Retry the request with the new key
           const retryResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
@@ -388,41 +377,24 @@ client.on('messageCreate', async (message) => {
               'Authorization': `Bearer ${nextKey}`
             },
             body: JSON.stringify({
-              model: 'deepseek/deepseek-r1:free',
+              model: 'deepseek/deepseek-chat:free',
               messages: formattedMessages,
               max_tokens: 1000
             })
           });
           
           const retryData = await retryResponse.json();
-          
-          // Check if response contains error
-          if (retryData.error) {
-            console.log(`API key ${currentApiKeyIndex + 1} error: ${retryData.error.message || 'Unknown error'}`);
-            continue; // Try next key
-          }
-          
-          // Process successful response
-          let responseContent = null;
           if (retryData.choices && retryData.choices[0] && retryData.choices[0].message) {
-            responseContent = retryData.choices[0].message.content;
-          } else if (retryData.response) {
-            responseContent = retryData.response;
-          }
-          
-          if (responseContent) {
-            await message.channel.send(responseContent);
-            return; // Success! Exit the function
+            await message.channel.send(retryData.choices[0].message.content);
+            return;
           }
         } catch (retryError) {
-          console.error(`Error with API key ${currentApiKeyIndex + 1}:`, retryError);
-          // Continue to next key
+          console.error('Error in retry attempt:', retryError);
         }
       }
     }
     
-    // If we get here, all keys failed or there was only one key
-    await message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
+    message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
   }
 });
 
