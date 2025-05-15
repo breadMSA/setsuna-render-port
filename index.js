@@ -257,14 +257,14 @@ English Style (Default):
 - Keep responses short and snappy, like Discord chat
 - Be sarcastic but supportive
 - Use gaming and anime references
-- Avoid overusing emojis - use them sparingly or not at all
+- Do not use emojis
 - Keep punctuation natural and casual
 
 中文回應風格：
 - 用網路用語和適量髒話但不過度（像 靠北 笑死 幹 喵的 很頂 6）
 - 用簡單標點 不要加太多標點符號
 - 語氣要像在跟朋友聊天一樣自然
-- 不要在句尾加表情符號
+- 不要加表情符號
 - 回覆要簡短有力
 
 Personality Traits:
@@ -309,17 +309,23 @@ client.on('messageCreate', async (message) => {
     ];
     
     // Call DeepSeek API via OpenRouter
-    const deepseekResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    const requestBody = {
+      model: 'deepseek/deepseek-r1:free',
+      messages: formattedMessages,
+      max_tokens: 1000
+    };
+    
+    // Store formattedMessages in a variable accessible for retries
+    const currentFormattedMessages = formattedMessages;
+    
+    const deepseekResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${getCurrentApiKey()}`
       },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-r1:free',
-        messages: formattedMessages,
-        max_tokens: 1000
-      })
+      body: JSON.stringify(requestBody)
     });
     
     const data = await deepseekResponse.json();
@@ -366,17 +372,17 @@ client.on('messageCreate', async (message) => {
         console.log('Rate limit reached, switching to next API key...');
         try {
           // Retry the request with the new key
-          const retryResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${nextKey}`
-            },
-            body: JSON.stringify({
-              model: 'deepseek/deepseek-chat:free',
-              messages: formattedMessages,
-              max_tokens: 1000
-            })
+        const retryResponse = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${nextKey}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek/deepseek-chat:free',
+            messages: currentFormattedMessages,
+            max_tokens: 1000
+          })
           });
           
           const retryData = await retryResponse.json();
