@@ -350,7 +350,7 @@ const commands = [
             .setDescription('The AI model to use (optional)')
             .setRequired(false)
             .addChoices(
-                  { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
+                  { name: 'Groq (Llama-3.1 | Default | Not very smart)', value: 'groq' },
                   { name: 'Gemini (Fast)', value: 'gemini' },
                   { name: 'ChatGPT', value: 'chatgpt' },
                   { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
@@ -425,12 +425,9 @@ client.once('ready', async () => {
     );
     
     console.log('Successfully reloaded application (/) commands.');
-
-    // Initialize Google Drive if credentials are available
-    await setupGoogleDrive();
     
     // Load saved active channels
-    await loadActiveChannels();
+    //await loadActiveChannels();
     
     // Set initial random status
     setRandomStatus();
