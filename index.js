@@ -377,7 +377,7 @@ client.on('messageCreate', async (message) => {
               'Authorization': `Bearer ${nextKey}`
             },
             body: JSON.stringify({
-              model: 'deepseek/deepseek-chat:free',
+              model: 'deepseek/deepseek-r1:free',
               messages: formattedMessages,
               max_tokens: 1000
             })
