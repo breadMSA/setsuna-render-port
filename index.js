@@ -30,6 +30,12 @@ const CHATGPT_API_KEYS = [
   process.env.CHATGPT_API_KEY_3
 ].filter(key => key); // Filter out undefined/null keys
 
+const TOGETHER_API_KEYS = [
+  process.env.TOGETHER_API_KEY,
+  process.env.TOGETHER_API_KEY_2,
+  process.env.TOGETHER_API_KEY_3
+].filter(key => key); // Filter out undefined/null keys
+
 const GROQ_API_KEYS = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
@@ -37,7 +43,7 @@ const GROQ_API_KEYS = [
 ].filter(key => key); // Filter out undefined/null keys
 
 // Check if any API keys are available
-if (DEEPSEEK_API_KEYS.length === 0 && GEMINI_API_KEYS.length === 0 && CHATGPT_API_KEYS.length === 0 && GROQ_API_KEYS.length === 0) {
+if (DEEPSEEK_API_KEYS.length === 0 && GEMINI_API_KEYS.length === 0 && CHATGPT_API_KEYS.length === 0 && TOGETHER_API_KEYS.length === 0 && GROQ_API_KEYS.length === 0) {
   console.warn('WARNING: No API KEY environment variables are set!');
   console.warn('The bot will not be able to process messages without at least one key.');
 }
@@ -46,10 +52,11 @@ if (DEEPSEEK_API_KEYS.length === 0 && GEMINI_API_KEYS.length === 0 && CHATGPT_AP
 let currentDeepseekKeyIndex = 0;
 let currentGeminiKeyIndex = 0;
 let currentChatGPTKeyIndex = 0;
+let currentTogetherKeyIndex = 0;
 let currentGroqKeyIndex = 0;
 
 // Default model to use
-let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'groq'
+let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'together', 'groq'
 
 // Channel model preferences
 const channelModelPreferences = new Map();
@@ -91,6 +98,15 @@ function getCurrentGroqKey() {
   return GROQ_API_KEYS[currentGroqKeyIndex];
 }
 
+function getNextTogetherKey() {
+  currentTogetherKeyIndex = (currentTogetherKeyIndex + 1) % TOGETHER_API_KEYS.length;
+  return TOGETHER_API_KEYS[currentTogetherKeyIndex];
+}
+
+function getCurrentTogetherKey() {
+  return TOGETHER_API_KEYS[currentTogetherKeyIndex];
+}
+
 // Initialize Discord client
 const client = new Client({
   intents: [
@@ -126,7 +142,31 @@ function setRandomStatus() {
 const fs = require('fs');
 const CHANNELS_FILE = './active_channels.json';
 
-function loadActiveChannels() {
+// GitHub API setup
+let octokit = null;
+
+async function setupGitHub() {
+  if (process.env.GITHUB_TOKEN && process.env.GITHUB_REPO) {
+    try {
+      const { Octokit } = await import('@octokit/rest');
+      octokit = new Octokit({
+        auth: process.env.GITHUB_TOKEN
+      });
+      
+      // Extract owner and repo from the repo string (format: owner/repo)
+      const [owner, repo] = process.env.GITHUB_REPO.split('/');
+      
+      console.log('GitHub API initialized successfully');
+      return true;
+    } catch (error) {
+      console.error('Error setting up GitHub API:', error);
+      return false;
+    }
+  }
+  return false;
+}
+
+async function loadActiveChannels() {
   try {
     // Try to load from primary location
     let loaded = false;
@@ -147,7 +187,48 @@ function loadActiveChannels() {
       loaded = true;
     }
     
-    // If primary file doesn't exist or is empty, try backup location
+    // If primary file doesn't exist or is empty, try GitHub
+    if (!loaded && octokit) {
+      try {
+        // Extract owner and repo from the repo string
+        const [owner, repo] = process.env.GITHUB_REPO.split('/');
+        
+        // Get file content from GitHub
+        const response = await octokit.repos.getContent({
+          owner,
+          repo,
+          path: 'active_channels_backup.json'
+        });
+        
+        // Decode content from base64
+        const content = Buffer.from(response.data.content, 'base64').toString();
+        const data = JSON.parse(content);
+        
+        for (const [channelId, config] of Object.entries(data)) {
+          // Extract model preference if it exists
+          if (config.model) {
+            channelModelPreferences.set(channelId, config.model);
+            // Remove model from config to avoid duplication
+            const { model, ...restConfig } = config;
+            activeChannels.set(channelId, restConfig);
+          } else {
+            activeChannels.set(channelId, config);
+          }
+        }
+        console.log('Loaded active channels and model preferences from GitHub');
+        
+        // Save to primary location immediately
+        saveActiveChannels();
+        loaded = true;
+      } catch (error) {
+        // If file doesn't exist yet, that's okay
+        if (error.status !== 404) {
+          console.error('Error loading from GitHub:', error);
+        }
+      }
+    }
+    
+    // If still not loaded, try backup location
     if (!loaded && process.env.BACKUP_PATH) {
       const backupFile = `${process.env.BACKUP_PATH}/active_channels_backup.json`;
       if (fs.existsSync(backupFile)) {
@@ -174,7 +255,7 @@ function loadActiveChannels() {
   }
 }
 
-function saveActiveChannels() {
+async function saveActiveChannels() {
   try {
     // Convert Map to an object that includes both active channels and model preferences
     const data = {};
@@ -188,22 +269,60 @@ function saveActiveChannels() {
     // Save to local file
     fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data));
     
-    // Also save to a backup location if environment variable is set
-    const backupPath = process.env.BACKUP_PATH;
-    if (backupPath) {
+    // Save to GitHub if available
+    if (octokit) {
       try {
-        // Create backup directory if it doesn't exist
-        if (!fs.existsSync(backupPath)) {
-          fs.mkdirSync(backupPath, { recursive: true });
+        // Extract owner and repo from the repo string
+        const [owner, repo] = process.env.GITHUB_REPO.split('/');
+        
+        // Convert data to JSON string
+        const content = JSON.stringify(data, null, 2);
+        
+        // Try to get the file first to get its SHA
+        try {
+          const fileResponse = await octokit.repos.getContent({
+            owner,
+            repo,
+            path: 'active_channels_backup.json'
+          });
+          
+          // Update existing file
+          await octokit.repos.createOrUpdateFileContents({
+            owner,
+            repo,
+            path: 'active_channels_backup.json',
+            message: 'Update active channels backup',
+            content: Buffer.from(content).toString('base64'),
+            sha: fileResponse.data.sha
+          });
+          
+          console.log('Saved active channels to GitHub (updated)');
+        } catch (error) {
+          // If file doesn't exist (404), create it
+          if (error.status === 404) {
+            await octokit.repos.createOrUpdateFileContents({
+              owner,
+              repo,
+              path: 'active_channels_backup.json',
+              message: 'Create active channels backup',
+              content: Buffer.from(content).toString('base64')
+            });
+            
+            console.log('Saved active channels to GitHub (created)');
+          } else {
+            throw error;
+          }
         }
-        fs.writeFileSync(`${backupPath}/active_channels_backup.json`, JSON.stringify(data));
-        console.log('Saved backup of active channels');
-      } catch (backupError) {
-        console.error('Error saving backup of active channels:', backupError);
+      } catch (error) {
+        console.error('Error saving to GitHub:', error);
       }
     }
     
-    console.log('Saved active channels to file');
+    // Save to backup location if specified
+    if (process.env.BACKUP_PATH) {
+      const backupFile = `${process.env.BACKUP_PATH}/active_channels_backup.json`;
+      fs.writeFileSync(backupFile, JSON.stringify(data));
+    }
   } catch (error) {
     console.error('Error saving active channels:', error);
   }
@@ -231,11 +350,12 @@ const commands = [
             .setDescription('The AI model to use (optional)')
             .setRequired(false)
             .addChoices(
-              { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
-              { name: 'Gemini (Fast)', value: 'gemini' },
-              { name: 'ChatGPT', value: 'chatgpt' },
-              { name: 'DeepSeek (Slow)', value: 'deepseek' }
-            )
+                  { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
+                  { name: 'Gemini (Fast)', value: 'gemini' },
+                  { name: 'ChatGPT', value: 'chatgpt' },
+                  { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
+                  { name: 'DeepSeek (Slow)', value: 'deepseek' }
+                )
         )
     )
     .addSubcommand(subcommand =>
@@ -260,11 +380,12 @@ const commands = [
             .setDescription('The AI model to use')
             .setRequired(true)
             .addChoices(
-              { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
-              { name: 'Gemini (Fast)', value: 'gemini' },
-              { name: 'ChatGPT', value: 'chatgpt' },
-              { name: 'DeepSeek (Slow)', value: 'deepseek' }
-            )
+                  { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
+                  { name: 'Gemini (Fast)', value: 'gemini' },
+                  { name: 'ChatGPT', value: 'chatgpt' },
+                  { name: 'Together AI', value: 'together' },
+                  { name: 'DeepSeek (Slow)', value: 'deepseek' }
+                )
         )
         .addChannelOption(option =>
           option
@@ -285,7 +406,13 @@ const commands = [
 
 // Register slash commands when the bot starts
 client.once('ready', async () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`Logged in as ${client.user.tag}!`);
+  
+  // Initialize GitHub API
+  await setupGitHub();
+  
+  // Load active channels
+  await loadActiveChannels();
   
   try {
     console.log('Started refreshing application (/) commands.');
@@ -299,8 +426,11 @@ client.once('ready', async () => {
     
     console.log('Successfully reloaded application (/) commands.');
 
+    // Initialize Google Drive if credentials are available
+    await setupGoogleDrive();
+    
     // Load saved active channels
-    loadActiveChannels();
+    await loadActiveChannels();
     
     // Set initial random status
     setRandomStatus();
@@ -347,6 +477,9 @@ client.on('interactionCreate', async (interaction) => {
         case 'groq':
           hasKeys = GROQ_API_KEYS.length > 0;
           break;
+      case 'together':
+          hasKeys = TOGETHER_API_KEYS.length > 0;
+          break;
       }
       
       if (!hasKeys) {
@@ -373,6 +506,7 @@ client.on('interactionCreate', async (interaction) => {
         'deepseek': 'DeepSeek',
         'gemini': 'Gemini',
         'chatgpt': 'ChatGPT',
+        'together': 'Together AI',
         'groq': 'Groq (Llama-3.1)'
       };
       
@@ -410,6 +544,9 @@ client.on('interactionCreate', async (interaction) => {
         case 'groq':
           hasKeys = GROQ_API_KEYS.length > 0;
           break;
+      case 'together':
+          hasKeys = TOGETHER_API_KEYS.length > 0;
+          break;
       }
       
       if (!hasKeys) {
@@ -428,6 +565,7 @@ client.on('interactionCreate', async (interaction) => {
         'deepseek': 'DeepSeek',
         'gemini': 'Gemini',
         'chatgpt': 'ChatGPT',
+        'together': 'Together AI',
         'groq': 'Groq (Llama-3.1)'
       };
       
@@ -621,6 +759,18 @@ client.on('messageCreate', async (message) => {
           }
         }
         break;
+        
+      case 'together':
+        if (TOGETHER_API_KEYS.length > 0) {
+          try {
+            response = await callTogetherAPI(formattedMessages);
+            modelUsed = 'Together AI';
+          } catch (error) {
+            console.log('Together API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
     }
     
     // If preferred model failed, try other models as fallback
@@ -654,6 +804,16 @@ client.on('messageCreate', async (message) => {
           modelUsed = 'ChatGPT';
         } catch (error) {
           console.log('ChatGPT API fallback error:', error.message);
+        }
+      }
+      
+      // Try Together API if not already tried and keys are available
+      if (!response && preferredModel !== 'together' && TOGETHER_API_KEYS.length > 0) {
+        try {
+          response = await callTogetherAPI(formattedMessages);
+          modelUsed = 'Together AI';
+        } catch (error) {
+          console.log('Together API fallback error:', error.message);
         }
       }
       
@@ -692,6 +852,67 @@ client.on('messageCreate', async (message) => {
 ),
 
 // API calling functions
+async function callTogetherAPI(messages) {
+  // Try all available Together AI keys until one works
+  let lastError = null;
+  const initialKeyIndex = currentTogetherKeyIndex;
+  let keysTriedCount = 0;
+  
+  while (keysTriedCount < TOGETHER_API_KEYS.length) {
+    try {
+      // Call Together AI API
+      const togetherResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getCurrentTogetherKey()}`
+        },
+        body: JSON.stringify({
+          model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+          messages: messages,
+          max_tokens: 500,
+          temperature: 0.7
+        })
+      });
+      
+      const data = await togetherResponse.json();
+      
+      // Check if response contains error
+      if (data.error) {
+        // Try next key
+        lastError = new Error(data.error.message || 'API returned an error');
+        getNextTogetherKey();
+        keysTriedCount++;
+        console.log(`Together API key ${currentTogetherKeyIndex + 1}/${TOGETHER_API_KEYS.length} error: ${data.error.message || 'Unknown error'}`);
+        continue;
+      }
+      
+      // Extract response content
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        // Try next key
+        lastError = new Error('Empty response from Together API');
+        getNextTogetherKey();
+        keysTriedCount++;
+        console.log(`Together API key ${currentTogetherKeyIndex + 1}/${TOGETHER_API_KEYS.length} returned empty response`);
+        continue;
+      }
+      
+      // Success! Return the response
+      return data.choices[0].message.content;
+      
+    } catch (error) {
+      // Try next key
+      lastError = error;
+      getNextTogetherKey();
+      keysTriedCount++;
+      console.log(`Together API key ${currentTogetherKeyIndex + 1}/${TOGETHER_API_KEYS.length} error: ${error.message}`);
+    }
+  }
+  
+  // If we get here, all keys failed
+  throw lastError || new Error('All Together API keys failed');
+}
+
 async function callGroqAPI(messages) {
   // Try all available Groq keys until one works
   let lastError = null;
