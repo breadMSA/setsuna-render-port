@@ -11,30 +11,84 @@ if (!DISCORD_TOKEN) {
   process.exit(1);
 }
 
-// Load all API keys
+// Load all API keys for different models
 const DEEPSEEK_API_KEYS = [
   process.env.DEEPSEEK_API_KEY,
   process.env.DEEPSEEK_API_KEY_2,
   process.env.DEEPSEEK_API_KEY_3
 ].filter(key => key); // Filter out undefined/null keys
 
-if (DEEPSEEK_API_KEYS.length === 0) {
-  console.warn('WARNING: No DEEPSEEK_API_KEY environment variables are set!');
+const GEMINI_API_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3
+].filter(key => key); // Filter out undefined/null keys
+
+const CHATGPT_API_KEYS = [
+  process.env.CHATGPT_API_KEY,
+  process.env.CHATGPT_API_KEY_2,
+  process.env.CHATGPT_API_KEY_3
+].filter(key => key); // Filter out undefined/null keys
+
+const GROQ_API_KEYS = [
+  process.env.GROQ_API_KEY,
+  process.env.GROQ_API_KEY_2,
+  process.env.GROQ_API_KEY_3
+].filter(key => key); // Filter out undefined/null keys
+
+// Check if any API keys are available
+if (DEEPSEEK_API_KEYS.length === 0 && GEMINI_API_KEYS.length === 0 && CHATGPT_API_KEYS.length === 0 && GROQ_API_KEYS.length === 0) {
+  console.warn('WARNING: No API KEY environment variables are set!');
   console.warn('The bot will not be able to process messages without at least one key.');
 }
 
-// Keep track of current API key index
-let currentApiKeyIndex = 0;
+// Keep track of current API key indices
+let currentDeepseekKeyIndex = 0;
+let currentGeminiKeyIndex = 0;
+let currentChatGPTKeyIndex = 0;
+let currentGroqKeyIndex = 0;
 
-// Function to get next API key
-function getNextApiKey() {
-  currentApiKeyIndex = (currentApiKeyIndex + 1) % DEEPSEEK_API_KEYS.length;
-  return DEEPSEEK_API_KEYS[currentApiKeyIndex];
+// Default model to use
+let defaultModel = 'deepseek'; // Options: 'deepseek', 'gemini', 'chatgpt', 'groq'
+
+// Channel model preferences
+const channelModelPreferences = new Map();
+
+// Function to get next API key for each model
+function getNextDeepseekKey() {
+  currentDeepseekKeyIndex = (currentDeepseekKeyIndex + 1) % DEEPSEEK_API_KEYS.length;
+  return DEEPSEEK_API_KEYS[currentDeepseekKeyIndex];
 }
 
-// Function to get current API key
-function getCurrentApiKey() {
-  return DEEPSEEK_API_KEYS[currentApiKeyIndex];
+function getCurrentDeepseekKey() {
+  return DEEPSEEK_API_KEYS[currentDeepseekKeyIndex];
+}
+
+function getNextGeminiKey() {
+  currentGeminiKeyIndex = (currentGeminiKeyIndex + 1) % GEMINI_API_KEYS.length;
+  return GEMINI_API_KEYS[currentGeminiKeyIndex];
+}
+
+function getCurrentGeminiKey() {
+  return GEMINI_API_KEYS[currentGeminiKeyIndex];
+}
+
+function getNextChatGPTKey() {
+  currentChatGPTKeyIndex = (currentChatGPTKeyIndex + 1) % CHATGPT_API_KEYS.length;
+  return CHATGPT_API_KEYS[currentChatGPTKeyIndex];
+}
+
+function getCurrentChatGPTKey() {
+  return CHATGPT_API_KEYS[currentChatGPTKeyIndex];
+}
+
+function getNextGroqKey() {
+  currentGroqKeyIndex = (currentGroqKeyIndex + 1) % GROQ_API_KEYS.length;
+  return GROQ_API_KEYS[currentGroqKeyIndex];
+}
+
+function getCurrentGroqKey() {
+  return GROQ_API_KEYS[currentGroqKeyIndex];
 }
 
 // Initialize Discord client
@@ -125,6 +179,30 @@ const commands = [
             .setRequired(false)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('model')
+        .setDescription('Set the AI model to use in this channel')
+        .addStringOption(option =>
+          option
+            .setName('model')
+            .setDescription('The AI model to use')
+            .setRequired(true)
+            .addChoices(
+              { name: 'DeepSeek (默认)', value: 'deepseek' },
+              { name: 'Gemini', value: 'gemini' },
+              { name: 'ChatGPT', value: 'chatgpt' },
+              { name: 'Groq (Llama-3.1)', value: 'groq' }
+            )
+        )
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to set model for (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder()
     .setName('help')
@@ -196,8 +274,59 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel}~`);
     } else if (subcommand === 'deactivate') {
       activeChannels.delete(targetChannel.id);
+      channelModelPreferences.delete(targetChannel.id);
       saveActiveChannels();
       await interaction.reply(`Peace out! Catch you later in another channel maybe?`);
+    } else if (subcommand === 'model') {
+      const model = interaction.options.getString('model');
+      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+      
+      // Check if the channel is active
+      if (!activeChannels.has(targetChannel.id)) {
+        await interaction.reply({
+          content: `嗯？我還沒在 ${targetChannel} 頻道被啟動呢！先用 \`/setsuna activate\` 啟動我吧。`,
+          ephemeral: true
+        });
+        return;
+      }
+      
+      // Check if the selected model has API keys
+      let hasKeys = false;
+      switch (model) {
+        case 'deepseek':
+          hasKeys = DEEPSEEK_API_KEYS.length > 0;
+          break;
+        case 'gemini':
+          hasKeys = GEMINI_API_KEYS.length > 0;
+          break;
+        case 'chatgpt':
+          hasKeys = CHATGPT_API_KEYS.length > 0;
+          break;
+        case 'groq':
+          hasKeys = GROQ_API_KEYS.length > 0;
+          break;
+      }
+      
+      if (!hasKeys) {
+        await interaction.reply({
+          content: `啊...${model.toUpperCase()} API key 沒設定好啦！去找管理員問問 ${model.toUpperCase()}_API_KEY 的事情吧。`,
+          ephemeral: true
+        });
+        return;
+      }
+      
+      // Set the model preference for this channel
+      channelModelPreferences.set(targetChannel.id, model);
+      
+      // Reply with confirmation
+      const modelNames = {
+        'deepseek': 'DeepSeek',
+        'gemini': 'Gemini',
+        'chatgpt': 'ChatGPT',
+        'groq': 'Groq (Llama-3.1)'
+      };
+      
+      await interaction.reply(`好的！我在 ${targetChannel} 頻道將使用 ${modelNames[model]} 模型來回應訊息～`);  
     }
   } else if (interaction.commandName === 'help') {
     const helpEmbed = {
@@ -261,7 +390,8 @@ English Style (Default):
 - Keep punctuation natural and casual
 
 中文回應風格：
-- 用網路用語和適量髒話但不過度（像 靠北 笑死 幹 喵的 很頂 6）
+- 如果對方用的是繁體中文，你一定務必必須要用繁體中文回覆
+- 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
 - 用簡單標點 不要加太多標點符號
 - 語氣要像在跟朋友聊天一樣自然
 - 不要加表情符號
@@ -301,7 +431,7 @@ client.on('messageCreate', async (message) => {
   // Update channel's message history
   channelConfig.messageHistory = messageHistory;
   
-  // Process with DeepSeek API
+  // Process with selected API
   try {
     // Add personality prompt as system message
     const formattedMessages = [
@@ -312,91 +442,378 @@ client.on('messageCreate', async (message) => {
       }))
     ];
     
-    // Call DeepSeek API via OpenRouter
-    const deepseekResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getCurrentApiKey()}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-r1:free',
-        messages: formattedMessages,
-        max_tokens: 1000
-      })
-    });
+    // Get channel's preferred model or use default
+    const preferredModel = channelModelPreferences.get(message.channelId) || defaultModel;
     
-    const data = await deepseekResponse.json();
+    // Variables to track response
+    let response = null;
+    let modelUsed = '';
+    let fallbackUsed = false;
     
-    // Check if response contains error
-    if (data.error) {
-      throw new Error(data.error.message || 'API returned an error');
-    }
-    
-    // OpenRouter wraps the response differently from direct API calls
-    let response;
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      // Standard OpenAI format
-      response = data.choices[0].message.content;
-    } else if (data.response) {
-      // Alternative response format
-      response = data.response;
-    } else {
-      console.error('Unexpected API response structure:', JSON.stringify(data));
-      throw new Error('Unexpected API response structure');
-    }
-    
-    if (!response) {
-      throw new Error('Empty response from API');
-    }
-    
-    // Show typing indicator
-    await message.channel.sendTyping();
-    
-    // Send the response
-    if (response) {
-      await message.channel.send(response);
-    } else {
-      await message.channel.send("Ugh, something went wrong with my brain. Try again later, 'kay?");
-    }
-  } catch (error) {
-    console.error('Error generating response:', error);
-    
-    // Check if it's a rate limit error
-    if (error.message && error.message.includes('Rate limit exceeded')) {
-      // If we have more API keys to try
-      if (DEEPSEEK_API_KEYS.length > 1) {
-        const nextKey = getNextApiKey();
-        console.log('Rate limit reached, switching to next API key...');
-        try {
-          // Retry the request with the new key
-          const retryResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${nextKey}`
-            },
-            body: JSON.stringify({
-              model: 'deepseek/deepseek-r1:free',
-              messages: formattedMessages,
-              max_tokens: 1000
-            })
-          });
-          
-          const retryData = await retryResponse.json();
-          if (retryData.choices && retryData.choices[0] && retryData.choices[0].message) {
-            await message.channel.send(retryData.choices[0].message.content);
-            return;
+    // Try preferred model first
+    switch (preferredModel) {
+      case 'deepseek':
+        if (DEEPSEEK_API_KEYS.length > 0) {
+          try {
+            response = await callDeepseekAPI(formattedMessages);
+            modelUsed = 'DeepSeek';
+          } catch (error) {
+            console.log('DeepSeek API error:', error.message);
+            // Will fall back to other models
           }
-        } catch (retryError) {
-          console.error('Error in retry attempt:', retryError);
+        }
+        break;
+        
+      case 'gemini':
+        if (GEMINI_API_KEYS.length > 0) {
+          try {
+            response = await callGeminiAPI(formattedMessages);
+            modelUsed = 'Gemini';
+          } catch (error) {
+            console.log('Gemini API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+        
+      case 'chatgpt':
+        if (CHATGPT_API_KEYS.length > 0) {
+          try {
+            response = await callChatGPTAPI(formattedMessages);
+            modelUsed = 'ChatGPT';
+          } catch (error) {
+            console.log('ChatGPT API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+        
+      case 'groq':
+        if (GROQ_API_KEYS.length > 0) {
+          try {
+            response = await callGroqAPI(formattedMessages);
+            modelUsed = 'Groq';
+          } catch (error) {
+            console.log('Groq API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+    }
+    
+    // If preferred model failed, try other models as fallback
+    if (!response) {
+      fallbackUsed = true;
+      
+      // Try DeepSeek API if not already tried and keys are available
+      if (!response && preferredModel !== 'deepseek' && DEEPSEEK_API_KEYS.length > 0) {
+        try {
+          response = await callDeepseekAPI(formattedMessages);
+          modelUsed = 'DeepSeek';
+        } catch (error) {
+          console.log('DeepSeek API fallback error:', error.message);
+        }
+      }
+      
+      // Try Gemini API if not already tried and keys are available
+      if (!response && preferredModel !== 'gemini' && GEMINI_API_KEYS.length > 0) {
+        try {
+          response = await callGeminiAPI(formattedMessages);
+          modelUsed = 'Gemini';
+        } catch (error) {
+          console.log('Gemini API fallback error:', error.message);
+        }
+      }
+      
+      // Try ChatGPT API if not already tried and keys are available
+      if (!response && preferredModel !== 'chatgpt' && CHATGPT_API_KEYS.length > 0) {
+        try {
+          response = await callChatGPTAPI(formattedMessages);
+          modelUsed = 'ChatGPT';
+        } catch (error) {
+          console.log('ChatGPT API fallback error:', error.message);
+        }
+      }
+      
+      // Try Groq API if not already tried and keys are available
+      if (!response && preferredModel !== 'groq' && GROQ_API_KEYS.length > 0) {
+        try {
+          response = await callGroqAPI(formattedMessages);
+          modelUsed = 'Groq';
+        } catch (error) {
+          console.log('Groq API fallback error:', error.message);
         }
       }
     }
     
-    message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
+    // If all models failed or returned empty response
+    if (!response) {
+      throw new Error('All available models failed to generate a response');
+    }
+    
+    // Refresh typing indicator
+    await message.channel.sendTyping();
+    
+    // Send the response
+    await message.channel.send(response);
+    if (fallbackUsed) {
+      console.log(`Response sent using ${modelUsed} model (fallback from ${preferredModel})`);
+    } else {
+      console.log(`Response sent using ${modelUsed} model`);
+    }
+    
+  } catch (error) {
+    console.error('Error generating response:', error);
+    await message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
   }
-});
+  },
+),
+
+// API calling functions
+async function callGroqAPI(messages) {
+  // Try all available Groq keys until one works
+  let lastError = null;
+  const initialKeyIndex = currentGroqKeyIndex;
+  let keysTriedCount = 0;
+  
+  while (keysTriedCount < GROQ_API_KEYS.length) {
+    try {
+      // Import Groq SDK dynamically
+      const { default: Groq } = await import('groq-sdk');
+      
+      // Initialize Groq client
+      const groq = new Groq({ apiKey: getCurrentGroqKey() });
+      
+      // Call Groq API
+      const completion = await groq.chat.completions.create({
+        messages: messages,
+        model: 'llama-3.1-8b-instant',
+        max_tokens: 1000
+      });
+      
+      // Check for empty response
+      if (!completion || !completion.choices || !completion.choices[0] || !completion.choices[0].message) {
+        // Try next key
+        lastError = new Error('Empty response from Groq API');
+        getNextGroqKey();
+        keysTriedCount++;
+        console.log(`Groq API key ${currentGroqKeyIndex + 1}/${GROQ_API_KEYS.length} returned empty response`);
+        continue;
+      }
+      
+      // Success! Return the response
+      return completion.choices[0].message.content;
+      
+    } catch (error) {
+      // Try next key
+      lastError = error;
+      getNextGroqKey();
+      keysTriedCount++;
+      console.log(`Groq API key ${currentGroqKeyIndex + 1}/${GROQ_API_KEYS.length} error: ${error.message}`);
+    }
+  }
+  
+  // If we get here, all keys failed
+  throw lastError || new Error('All Groq API keys failed');
+}
+
+async function callDeepseekAPI(messages) {
+  // Try all available DeepSeek keys until one works
+  let lastError = null;
+  const initialKeyIndex = currentDeepseekKeyIndex;
+  let keysTriedCount = 0;
+  
+  while (keysTriedCount < DEEPSEEK_API_KEYS.length) {
+    try {
+      // Call DeepSeek API via OpenRouter
+      const deepseekResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getCurrentDeepseekKey()}`
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-r1:free',
+          messages: messages,
+          max_tokens: 1000
+        })
+      });
+      
+      const data = await deepseekResponse.json();
+      
+      // Check if response contains error
+      if (data.error) {
+        // Try next key
+        lastError = new Error(data.error.message || 'API returned an error');
+        getNextDeepseekKey();
+        keysTriedCount++;
+        console.log(`DeepSeek API key ${currentDeepseekKeyIndex + 1}/${DEEPSEEK_API_KEYS.length} error: ${data.error.message || 'Unknown error'}`);
+        continue;
+      }
+      
+      // Extract response content
+      let responseContent = null;
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        // Standard OpenAI format
+        responseContent = data.choices[0].message.content;
+      } else if (data.response) {
+        // Alternative response format
+        responseContent = data.response;
+      }
+      
+      // Check for empty response
+      if (!responseContent) {
+        // Try next key
+        lastError = new Error('Empty response from API');
+        getNextDeepseekKey();
+        keysTriedCount++;
+        console.log(`DeepSeek API key ${currentDeepseekKeyIndex + 1}/${DEEPSEEK_API_KEYS.length} returned empty response`);
+        continue;
+      }
+      
+      // Success! Return the response
+      return responseContent;
+      
+    } catch (error) {
+      // Try next key
+      lastError = error;
+      getNextDeepseekKey();
+      keysTriedCount++;
+      console.log(`DeepSeek API key ${currentDeepseekKeyIndex + 1}/${DEEPSEEK_API_KEYS.length} error: ${error.message}`);
+    }
+  }
+  
+  // If we get here, all keys failed
+  throw lastError || new Error('All DeepSeek API keys failed');
+}
+
+async function callGeminiAPI(messages) {
+  // Try all available Gemini keys until one works
+  let lastError = null;
+  const initialKeyIndex = currentGeminiKeyIndex;
+  let keysTriedCount = 0;
+  
+  // Convert messages to Gemini format
+  const geminiContents = [];
+  
+  // Add system message as a user message with [system] prefix
+  const systemMessage = messages.find(msg => msg.role === 'system');
+  if (systemMessage) {
+    geminiContents.push({
+      role: 'user',
+      parts: [{ text: `[system] ${systemMessage.content}` }]
+    });
+  }
+  
+  // Add the rest of the messages
+  for (const msg of messages) {
+    if (msg.role !== 'system') {
+      geminiContents.push({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      });
+    }
+  }
+  
+  while (keysTriedCount < GEMINI_API_KEYS.length) {
+    try {
+      // Import Gemini API dynamically
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      
+      // Initialize Gemini API
+      const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      
+      // Create chat session
+      const chat = model.startChat({
+        history: geminiContents.slice(0, -1), // All messages except the last one
+        generationConfig: {
+          maxOutputTokens: 1000,
+        },
+      });
+      
+      // Send the last message to get a response
+      const lastMessage = geminiContents[geminiContents.length - 1];
+      const result = await chat.sendMessage(lastMessage.parts[0].text);
+      const response = result.response;
+      
+      // Check for empty response
+      if (!response || !response.text()) {
+        // Try next key
+        lastError = new Error('Empty response from Gemini API');
+        getNextGeminiKey();
+        keysTriedCount++;
+        console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} returned empty response`);
+        continue;
+      }
+      
+      // Success! Return the response
+      return response.text();
+      
+    } catch (error) {
+      // Try next key
+      lastError = error;
+      getNextGeminiKey();
+      keysTriedCount++;
+      console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} error: ${error.message}`);
+    }
+  }
+  
+  // If we get here, all keys failed
+  throw lastError || new Error('All Gemini API keys failed');
+}
+
+async function callChatGPTAPI(messages) {
+  // Try all available ChatGPT keys until one works
+  let lastError = null;
+  const initialKeyIndex = currentChatGPTKeyIndex;
+  let keysTriedCount = 0;
+  
+  while (keysTriedCount < CHATGPT_API_KEYS.length) {
+    try {
+      // Import OpenAI API dynamically
+      const { Configuration, OpenAIApi } = await import('openai');
+      
+      // Initialize OpenAI API
+      const configuration = new Configuration({
+        apiKey: getCurrentChatGPTKey(),
+        basePath: 'https://free.v36.cm/v1'
+      });
+      
+      const openai = new OpenAIApi(configuration);
+      
+      // Call ChatGPT API
+      const chatCompletion = await openai.createChatCompletion({
+        model: 'gpt-3.5-turbo-0125',
+        messages: messages,
+        max_tokens: 1000
+      });
+      
+      // Check for empty response
+      if (!chatCompletion.data || !chatCompletion.data.choices || !chatCompletion.data.choices[0] || !chatCompletion.data.choices[0].message) {
+        // Try next key
+        lastError = new Error('Empty response from ChatGPT API');
+        getNextChatGPTKey();
+        keysTriedCount++;
+        console.log(`ChatGPT API key ${currentChatGPTKeyIndex + 1}/${CHATGPT_API_KEYS.length} returned empty response`);
+        continue;
+      }
+      
+      // Success! Return the response
+      return chatCompletion.data.choices[0].message.content;
+      
+    } catch (error) {
+      // Try next key
+      lastError = error;
+      getNextChatGPTKey();
+      keysTriedCount++;
+      console.log(`ChatGPT API key ${currentChatGPTKeyIndex + 1}/${CHATGPT_API_KEYS.length} error: ${error.message}`);
+    }
+  }
+  
+  // If we get here, all keys failed
+  throw lastError || new Error('All ChatGPT API keys failed');
+}
 
 client.on('error', (error) => {
   console.error('Discord client error:', error);
