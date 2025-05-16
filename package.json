@@ -25,7 +25,8 @@
     "googleapis": "^128.0.0",
     "groq-sdk": "^0.2.0",
     "node-fetch": "^2.7.0",
-    "openai": "^4.28.0"
+    "openai": "^4.28.0",
+    "together-ai": "^0.16.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
