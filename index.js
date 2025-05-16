@@ -459,7 +459,7 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     const avatarPath = interaction.options.getString('avatar');
     const bannerPath = interaction.options.getString('banner');
