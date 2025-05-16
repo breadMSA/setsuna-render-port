@@ -380,12 +380,12 @@ const commands = [
             .setDescription('The AI model to use')
             .setRequired(true)
             .addChoices(
-                  { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
-                  { name: 'Gemini (Fast)', value: 'gemini' },
-                  { name: 'ChatGPT', value: 'chatgpt' },
-                  { name: 'Together AI', value: 'together' },
-                  { name: 'DeepSeek (Slow)', value: 'deepseek' }
-                )
+              { name: 'Groq (Llama-3.1 | Default | Not very smart)', value: 'groq' },
+              { name: 'Gemini (Fast)', value: 'gemini' },
+              { name: 'ChatGPT', value: 'chatgpt' },
+              { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
+              { name: 'DeepSeek (Slow)', value: 'deepseek' }
+            )
         )
         .addChannelOption(option =>
           option
@@ -664,190 +664,6 @@ Respond naturally and concisely, matching the language of the user while maintai
 `;
 
 // Process messages in active channels
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  
-  // Check if the message is in an active channel
-  const channelConfig = activeChannels.get(message.channelId);
-  if (!channelConfig) return;
-  
-  // Show typing indicator immediately
-  await message.channel.sendTyping();
-  
-
-  // Get message history (last 50 messages)
-  const messages = await message.channel.messages.fetch({ limit: 50 });
-  const messageHistory = Array.from(messages.values())
-    .reverse()
-    .map(msg => ({
-      role: msg.author.bot ? 'assistant' : 'user',
-      content: msg.content,
-      author: msg.author.username
-    }));
-  
-  // Update channel's message history
-  channelConfig.messageHistory = messageHistory;
-  
-  // Process with selected API
-  try {
-    // Add personality prompt as system message
-    const formattedMessages = [
-      { role: 'system', content: setsunaPersonality },
-      ...messageHistory.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }))
-    ];
-    
-    // Get channel's preferred model or use default
-    const preferredModel = channelModelPreferences.get(message.channelId) || defaultModel;
-    
-    // Variables to track response
-    let response = null;
-    let modelUsed = '';
-    let fallbackUsed = false;
-    
-    // Try preferred model first
-    switch (preferredModel) {
-      case 'deepseek':
-        if (DEEPSEEK_API_KEYS.length > 0) {
-          try {
-            response = await callDeepseekAPI(formattedMessages);
-            modelUsed = 'DeepSeek';
-          } catch (error) {
-            console.log('DeepSeek API error:', error.message);
-            // Will fall back to other models
-          }
-        }
-        break;
-        
-      case 'gemini':
-        if (GEMINI_API_KEYS.length > 0) {
-          try {
-            response = await callGeminiAPI(formattedMessages);
-            modelUsed = 'Gemini';
-          } catch (error) {
-            console.log('Gemini API error:', error.message);
-            // Will fall back to other models
-          }
-        }
-        break;
-        
-      case 'chatgpt':
-        if (CHATGPT_API_KEYS.length > 0) {
-          try {
-            response = await callChatGPTAPI(formattedMessages);
-            modelUsed = 'ChatGPT';
-          } catch (error) {
-            console.log('ChatGPT API error:', error.message);
-            // Will fall back to other models
-          }
-        }
-        break;
-        
-      case 'groq':
-        if (GROQ_API_KEYS.length > 0) {
-          try {
-            response = await callGroqAPI(formattedMessages);
-            modelUsed = 'Groq';
-          } catch (error) {
-            console.log('Groq API error:', error.message);
-            // Will fall back to other models
-          }
-        }
-        break;
-        
-      case 'together':
-        if (TOGETHER_API_KEYS.length > 0) {
-          try {
-            response = await callTogetherAPI(formattedMessages);
-            modelUsed = 'Together AI';
-          } catch (error) {
-            console.log('Together API error:', error.message);
-            // Will fall back to other models
-          }
-        }
-        break;
-    }
-    
-    // If preferred model failed, try other models as fallback
-    if (!response) {
-      fallbackUsed = true;
-      
-      // Try Groq API if not already tried and keys are available
-      if (!response && preferredModel !== 'groq' && GROQ_API_KEYS.length > 0) {
-        try {
-          response = await callGroqAPI(formattedMessages);
-          modelUsed = 'Groq';
-        } catch (error) {
-          console.log('Groq API fallback error:', error.message);
-        }
-      }
-      
-      // Try Gemini API if not already tried and keys are available
-      if (!response && preferredModel !== 'gemini' && GEMINI_API_KEYS.length > 0) {
-        try {
-          response = await callGeminiAPI(formattedMessages);
-          modelUsed = 'Gemini';
-        } catch (error) {
-          console.log('Gemini API fallback error:', error.message);
-        }
-      }
-      
-      // Try ChatGPT API if not already tried and keys are available
-      if (!response && preferredModel !== 'chatgpt' && CHATGPT_API_KEYS.length > 0) {
-        try {
-          response = await callChatGPTAPI(formattedMessages);
-          modelUsed = 'ChatGPT';
-        } catch (error) {
-          console.log('ChatGPT API fallback error:', error.message);
-        }
-      }
-      
-      // Try Together API if not already tried and keys are available
-      if (!response && preferredModel !== 'together' && TOGETHER_API_KEYS.length > 0) {
-        try {
-          response = await callTogetherAPI(formattedMessages);
-          modelUsed = 'Together AI';
-        } catch (error) {
-          console.log('Together API fallback error:', error.message);
-        }
-      }
-      
-      // Try DeepSeek API if not already tried and keys are available (last resort)
-      if (!response && preferredModel !== 'deepseek' && DEEPSEEK_API_KEYS.length > 0) {
-        try {
-          response = await callDeepseekAPI(formattedMessages);
-          modelUsed = 'DeepSeek';
-        } catch (error) {
-          console.log('DeepSeek API fallback error:', error.message);
-        }
-      }
-    }
-    
-    // If all models failed or returned empty response
-    if (!response) {
-      throw new Error('All available models failed to generate a response');
-    }
-    
-    // Refresh typing indicator
-    await message.channel.sendTyping();
-    
-    // Send the response
-    await message.channel.send(response);
-    if (fallbackUsed) {
-      console.log(`Response sent using ${modelUsed} model (fallback from ${preferredModel})`);
-    } else {
-      console.log(`Response sent using ${modelUsed} model`);
-    }
-    
-  } catch (error) {
-    console.error('Error generating response:', error);
-    await message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
-  }
-  },
-),
-
 // API calling functions
 async function callTogetherAPI(messages) {
   // Try all available Together AI keys until one works
@@ -1156,6 +972,192 @@ async function callChatGPTAPI(messages) {
   // If we get here, all keys failed
   throw lastError || new Error('All ChatGPT API keys failed');
 }
+
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  
+  // Check if the message is in an active channel
+  const channelConfig = activeChannels.get(message.channelId);
+  if (!channelConfig) return;
+  
+  // Show typing indicator immediately
+  await message.channel.sendTyping();
+  
+
+  // Get message history (last 50 messages)
+  const messages = await message.channel.messages.fetch({ limit: 50 });
+  const messageHistory = Array.from(messages.values())
+    .reverse()
+    .map(msg => ({
+      role: msg.author.bot ? 'assistant' : 'user',
+      content: msg.content,
+      author: msg.author.username
+    }));
+  
+  // Update channel's message history
+  channelConfig.messageHistory = messageHistory;
+  
+  // Process with selected API
+  try {
+    // Add personality prompt as system message
+    const formattedMessages = [
+      { role: 'system', content: setsunaPersonality },
+      ...messageHistory.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }))
+    ];
+    
+    // Get channel's preferred model or use default
+    const preferredModel = channelModelPreferences.get(message.channelId) || defaultModel;
+    
+    // Variables to track response
+    let response = null;
+    let modelUsed = '';
+    let fallbackUsed = false;
+    
+    // Try preferred model first
+    switch (preferredModel) {
+      case 'deepseek':
+        if (DEEPSEEK_API_KEYS.length > 0) {
+          try {
+            response = await callDeepseekAPI(formattedMessages);
+            modelUsed = 'DeepSeek';
+          } catch (error) {
+            console.log('DeepSeek API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+        
+      case 'gemini':
+        if (GEMINI_API_KEYS.length > 0) {
+          try {
+            response = await callGeminiAPI(formattedMessages);
+            modelUsed = 'Gemini';
+          } catch (error) {
+            console.log('Gemini API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+        
+      case 'chatgpt':
+        if (CHATGPT_API_KEYS.length > 0) {
+          try {
+            response = await callChatGPTAPI(formattedMessages);
+            modelUsed = 'ChatGPT';
+          } catch (error) {
+            console.log('ChatGPT API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+        
+      case 'groq':
+        if (GROQ_API_KEYS.length > 0) {
+          try {
+            response = await callGroqAPI(formattedMessages);
+            modelUsed = 'Groq';
+          } catch (error) {
+            console.log('Groq API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+        
+      case 'together':
+        if (TOGETHER_API_KEYS.length > 0) {
+          try {
+            response = await callTogetherAPI(formattedMessages);
+            modelUsed = 'Together AI';
+          } catch (error) {
+            console.log('Together API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
+    }
+    
+    // If preferred model failed, try other models as fallback
+    if (!response) {
+      fallbackUsed = true;
+      
+      // Try Groq API if not already tried and keys are available
+      if (!response && preferredModel !== 'groq' && GROQ_API_KEYS.length > 0) {
+        try {
+          response = await callGroqAPI(formattedMessages);
+          modelUsed = 'Groq';
+        } catch (error) {
+          console.log('Groq API fallback error:', error.message);
+        }
+      }
+      
+      // Try Gemini API if not already tried and keys are available
+      if (!response && preferredModel !== 'gemini' && GEMINI_API_KEYS.length > 0) {
+        try {
+          response = await callGeminiAPI(formattedMessages);
+          modelUsed = 'Gemini';
+        } catch (error) {
+          console.log('Gemini API fallback error:', error.message);
+        }
+      }
+      
+      // Try ChatGPT API if not already tried and keys are available
+      if (!response && preferredModel !== 'chatgpt' && CHATGPT_API_KEYS.length > 0) {
+        try {
+          response = await callChatGPTAPI(formattedMessages);
+          modelUsed = 'ChatGPT';
+        } catch (error) {
+          console.log('ChatGPT API fallback error:', error.message);
+        }
+      }
+      
+      // Try Together API if not already tried and keys are available
+      if (!response && preferredModel !== 'together' && TOGETHER_API_KEYS.length > 0) {
+        try {
+          response = await callTogetherAPI(formattedMessages);
+          modelUsed = 'Together AI';
+        } catch (error) {
+          console.log('Together API fallback error:', error.message);
+        }
+      }
+      
+      // Try DeepSeek API if not already tried and keys are available (last resort)
+      if (!response && preferredModel !== 'deepseek' && DEEPSEEK_API_KEYS.length > 0) {
+        try {
+          response = await callDeepseekAPI(formattedMessages);
+          modelUsed = 'DeepSeek';
+        } catch (error) {
+          console.log('DeepSeek API fallback error:', error.message);
+        }
+      }
+    }
+    
+    // If all models failed or returned empty response
+    if (!response) {
+      throw new Error('All available models failed to generate a response');
+    }
+    
+    // Refresh typing indicator
+    await message.channel.sendTyping();
+    
+    // Send the response
+    await message.channel.send(response);
+    if (fallbackUsed) {
+      console.log(`Response sent using ${modelUsed} model (fallback from ${preferredModel})`);
+    } else {
+      console.log(`Response sent using ${modelUsed} model`);
+    }
+    
+  } catch (error) {
+    console.error('Error generating response:', error);
+    await message.channel.send('Sorry, I glitched out for a sec. Hit me up again later?');
+  }
+  },
+),
+
+
 
 client.on('error', (error) => {
   console.error('Discord client error:', error);
