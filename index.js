@@ -576,13 +576,13 @@ client.on('messageCreate', async (message) => {
     if (!response) {
       fallbackUsed = true;
       
-      // Try DeepSeek API if not already tried and keys are available
-      if (!response && preferredModel !== 'deepseek' && DEEPSEEK_API_KEYS.length > 0) {
+      // Try Groq API if not already tried and keys are available
+      if (!response && preferredModel !== 'groq' && GROQ_API_KEYS.length > 0) {
         try {
-          response = await callDeepseekAPI(formattedMessages);
-          modelUsed = 'DeepSeek';
+          response = await callGroqAPI(formattedMessages);
+          modelUsed = 'Groq';
         } catch (error) {
-          console.log('DeepSeek API fallback error:', error.message);
+          console.log('Groq API fallback error:', error.message);
         }
       }
       
@@ -606,13 +606,13 @@ client.on('messageCreate', async (message) => {
         }
       }
       
-      // Try Groq API if not already tried and keys are available
-      if (!response && preferredModel !== 'groq' && GROQ_API_KEYS.length > 0) {
+      // Try DeepSeek API if not already tried and keys are available (last resort)
+      if (!response && preferredModel !== 'deepseek' && DEEPSEEK_API_KEYS.length > 0) {
         try {
-          response = await callGroqAPI(formattedMessages);
-          modelUsed = 'Groq';
+          response = await callDeepseekAPI(formattedMessages);
+          modelUsed = 'DeepSeek';
         } catch (error) {
-          console.log('Groq API fallback error:', error.message);
+          console.log('DeepSeek API fallback error:', error.message);
         }
       }
     }
@@ -647,11 +647,19 @@ async function callGroqAPI(messages) {
   const initialKeyIndex = currentGroqKeyIndex;
   let keysTriedCount = 0;
   
+  // Ensure groq-sdk is imported at the top level
+  let Groq;
+  try {
+    // Import Groq SDK
+    const groqModule = await import('groq-sdk');
+    Groq = groqModule.default;
+  } catch (importError) {
+    console.error('Failed to import groq-sdk:', importError.message);
+    throw new Error(`Failed to import groq-sdk: ${importError.message}`);
+  }
+  
   while (keysTriedCount < GROQ_API_KEYS.length) {
     try {
-      // Import Groq SDK dynamically
-      const { default: Groq } = await import('groq-sdk');
-      
       // Initialize Groq client
       const groq = new Groq({ apiKey: getCurrentGroqKey() });
       
