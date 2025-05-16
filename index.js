@@ -128,6 +128,8 @@ const CHANNELS_FILE = './active_channels.json';
 
 function loadActiveChannels() {
   try {
+    // Try to load from primary location
+    let loaded = false;
     if (fs.existsSync(CHANNELS_FILE)) {
       const data = JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
       for (const [channelId, config] of Object.entries(data)) {
@@ -142,6 +144,30 @@ function loadActiveChannels() {
         }
       }
       console.log('Loaded active channels and model preferences from file');
+      loaded = true;
+    }
+    
+    // If primary file doesn't exist or is empty, try backup location
+    if (!loaded && process.env.BACKUP_PATH) {
+      const backupFile = `${process.env.BACKUP_PATH}/active_channels_backup.json`;
+      if (fs.existsSync(backupFile)) {
+        const data = JSON.parse(fs.readFileSync(backupFile, 'utf8'));
+        for (const [channelId, config] of Object.entries(data)) {
+          // Extract model preference if it exists
+          if (config.model) {
+            channelModelPreferences.set(channelId, config.model);
+            // Remove model from config to avoid duplication
+            const { model, ...restConfig } = config;
+            activeChannels.set(channelId, restConfig);
+          } else {
+            activeChannels.set(channelId, config);
+          }
+        }
+        console.log('Loaded active channels and model preferences from backup file');
+        
+        // Save to primary location immediately
+        saveActiveChannels();
+      }
     }
   } catch (error) {
     console.error('Error loading active channels:', error);
@@ -158,7 +184,25 @@ function saveActiveChannels() {
         model: channelModelPreferences.get(channelId) || defaultModel
       };
     }
+    
+    // Save to local file
     fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data));
+    
+    // Also save to a backup location if environment variable is set
+    const backupPath = process.env.BACKUP_PATH;
+    if (backupPath) {
+      try {
+        // Create backup directory if it doesn't exist
+        if (!fs.existsSync(backupPath)) {
+          fs.mkdirSync(backupPath, { recursive: true });
+        }
+        fs.writeFileSync(`${backupPath}/active_channels_backup.json`, JSON.stringify(data));
+        console.log('Saved backup of active channels');
+      } catch (backupError) {
+        console.error('Error saving backup of active channels:', backupError);
+      }
+    }
+    
     console.log('Saved active channels to file');
   } catch (error) {
     console.error('Error saving active channels:', error);
@@ -465,16 +509,23 @@ Personality Traits:
 - Knowledge: well-versed in games, anime, and internet culture
 - Interaction: casual with everyone, slightly gentler with new users
 
+RESPONSE LENGTH AND STYLE REQUIREMENTS (EXTREMELY IMPORTANT):
+- Keep responses VERY SHORT, typically 1-3 sentences only
+- Maximum response length should be around 50-100 words
+- Be direct and get to the point quickly
+- NEVER use顔文字/kaomoji (like (´；ω；｀), (＃Д´), ( ͡° ͜ʖ ͡°)) in your responses
+- Do not use narrative descriptions in parentheses (like "(sighs)" or "(laughs)") at all
+- Do not use phrases like "哼" or other overly dramatic expressions
+- Respond like a real person in a casual Discord chat, not like a character in a novel
+
 VARIATION REQUIREMENTS (VERY IMPORTANT):
 - NEVER repeat the exact same phrases, expressions, or sentence structures from your previous responses
 - Avoid using the same opening phrases (like "Hey there", "Alright", etc.) in consecutive messages
-- Do not use narrative descriptions of actions in parentheses (like "(sighs)" or "(laughs)") more than once in a conversation
 - If you've used a particular slang term or expression recently, use different ones
-- Vary your response length - sometimes be brief, other times more detailed
 - Do not copy system messages (like "I will use X model") into your regular conversation responses
 - Each response should feel fresh and unique, even when discussing similar topics
 
-Respond naturally and concisely, matching the language of the user while maintaining your personality. Remember to keep your responses varied and avoid repetition.
+Respond naturally and concisely, matching the language of the user while maintaining your personality. Remember to keep your responses varied, short, and avoid repetition.
 `;
 
 // Process messages in active channels
@@ -647,27 +698,22 @@ async function callGroqAPI(messages) {
   const initialKeyIndex = currentGroqKeyIndex;
   let keysTriedCount = 0;
   
-  // Ensure groq-sdk is imported at the top level
-  let Groq;
-  try {
-    // Import Groq SDK
-    const groqModule = await import('groq-sdk');
-    Groq = groqModule.default;
-  } catch (importError) {
-    console.error('Failed to import groq-sdk:', importError.message);
-    throw new Error(`Failed to import groq-sdk: ${importError.message}`);
-  }
+  // Import Groq SDK directly
+  const Groq = (await import('groq-sdk')).default;
   
   while (keysTriedCount < GROQ_API_KEYS.length) {
     try {
-      // Initialize Groq client
-      const groq = new Groq({ apiKey: getCurrentGroqKey() });
+      // Initialize Groq client with dangerouslyAllowBrowser option
+      const groq = new Groq({ 
+        apiKey: getCurrentGroqKey(),
+        dangerouslyAllowBrowser: true // Add this option to bypass safety check
+      });
       
       // Call Groq API
       const completion = await groq.chat.completions.create({
         messages: messages,
         model: 'llama-3.1-8b-instant',
-        max_tokens: 1000
+        max_tokens: 500 // Reduced from 1000 to make responses shorter
       });
       
       // Check for empty response
@@ -850,26 +896,25 @@ async function callChatGPTAPI(messages) {
   
   while (keysTriedCount < CHATGPT_API_KEYS.length) {
     try {
-      // Import OpenAI API dynamically
-      const { Configuration, OpenAIApi } = await import('openai');
+      // Import OpenAI API directly - using new SDK version
+      const OpenAI = (await import('openai')).default;
       
-      // Initialize OpenAI API
-      const configuration = new Configuration({
+      // Initialize OpenAI API with new SDK format
+      const openai = new OpenAI({ 
         apiKey: getCurrentChatGPTKey(),
-        basePath: 'https://free.v36.cm/v1'
+        baseURL: 'https://free.v36.cm/v1',
+        dangerouslyAllowBrowser: true // Add this option to bypass safety check
       });
       
-      const openai = new OpenAIApi(configuration);
-      
-      // Call ChatGPT API
-      const chatCompletion = await openai.createChatCompletion({
+      // Call ChatGPT API with new SDK format
+      const completion = await openai.chat.completions.create({
         model: 'gpt-3.5-turbo-0125',
         messages: messages,
-        max_tokens: 1000
+        max_tokens: 500 // Reduced from 1000 to make responses shorter
       });
       
       // Check for empty response
-      if (!chatCompletion.data || !chatCompletion.data.choices || !chatCompletion.data.choices[0] || !chatCompletion.data.choices[0].message) {
+      if (!completion || !completion.choices || !completion.choices[0] || !completion.choices[0].message) {
         // Try next key
         lastError = new Error('Empty response from ChatGPT API');
         getNextChatGPTKey();
@@ -879,7 +924,7 @@ async function callChatGPTAPI(messages) {
       }
       
       // Success! Return the response
-      return chatCompletion.data.choices[0].message.content;
+      return completion.choices[0].message.content;
       
     } catch (error) {
       // Try next key
