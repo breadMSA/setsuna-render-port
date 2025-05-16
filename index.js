@@ -459,22 +459,24 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
     }
 
+    await interaction.deferReply({ ephemeral: true });
+
     const avatarPath = interaction.options.getString('avatar');
     const bannerPath = interaction.options.getString('banner');
 
     try {
       if (avatarPath) {
         await client.user.setAvatar(avatarPath);
-        await interaction.reply({ content: 'Avatar updated successfully!', ephemeral: true });
+        await interaction.editReply({ content: 'Avatar updated successfully!' });
       } else if (bannerPath) {
         await client.user.setBanner(bannerPath);
-        await interaction.reply({ content: 'Banner updated successfully!', ephemeral: true });
+        await interaction.editReply({ content: 'Banner updated successfully!' });
       } else {
-        await interaction.reply({ content: 'Please provide either an avatar or a banner path.', ephemeral: true });
+        await interaction.editReply({ content: 'Please provide either an avatar or a banner path.' });
       }
     } catch (error) {
       console.error('Error setting profile:', error);
-      await interaction.reply({ content: 'Failed to update profile. Check the console for errors.', ephemeral: true });
+      await interaction.editReply({ content: 'Failed to update profile. Check the console for errors.' });
     }
     return; // Important to return after handling the command
   }
