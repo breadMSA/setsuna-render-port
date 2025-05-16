@@ -717,7 +717,7 @@ async function callTogetherAPI(messages) {
       // Call Together AI API
       const response = await together.chat.completions.create({
         messages: messages,
-        model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', // Corrected model
+        model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', // Corrected model
         max_tokens: 500,
         temperature: 0.7
       });
