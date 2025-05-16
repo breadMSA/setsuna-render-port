@@ -1,0 +1,1 @@
+This directory is for storing media files such as avatars and banners for the bot.
