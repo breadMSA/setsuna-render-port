@@ -1,16 +1,18 @@
 <details>
 <summary>🇹🇼 點擊展開／收起繁體中文說明</summary>
 
-# Setsuna Discord Bot（剎那 Discord 機器人）
+# Setsuna Discord 機器人
 
-一個能連接 DeepSeek API 並在指定頻道與用戶聊天的 Discord 機器人。
+一個能連接 LLM API 並在指定頻道與用戶聊天的 Discord 機器人。
 
 ## 功能特色
 
 - 連接 Discord 並在設定的頻道回應訊息
-- 整合 DeepSeek API
+- 整合多種 LLM API（Groq、Gemini、ChatGPT、DeepSeek）
 - 透過分析頻道訊息歷史，提供有脈絡的回覆
 - 支援簡單的頻道啟用／停用指令
+- 可在啟用頻道時選擇使用的模型
+- 頻道設定和模型偏好持久化保存，重啟後不會遺失
 
 ## 邀請 Setsuna
 你可以用以下連結邀請 Setsuna 到你的 Discord 伺服器：
@@ -32,6 +34,8 @@
    DISCORD_TOKEN=你的 Discord bot token
    GEMINI_API_KEY=你的 Gemini API 金鑰
    DEEPSEEK_API_KEY=你的 DeepSeek API 金鑰
+   CHATGPT_API_KEY=你的 ChatGPT API 金鑰
+   GROQ_API_KEY=你的 Groq API 金鑰
    ```
 4. 啟動機器人：
    ```
@@ -124,9 +128,11 @@
 
 機器人啟動後，你可以在 Discord 伺服器使用以下指令：
 
-- `/setsuna activate #頻道名稱` - 在指定頻道啟用機器人
+- `/setsuna activate #頻道名稱 [模型]` - 在指定頻道啟用機器人，可選擇使用的模型（Groq、Gemini、ChatGPT、DeepSeek）
 - `/setsuna deactivate #頻道名稱` - 在指定頻道停用機器人
+- `/setsuna model [模型] #頻道名稱` - 更改指定頻道使用的模型
 - 若不指定 #頻道名稱，則預設為當前頻道
+- 若不指定模型，則預設使用 Groq
 
 - `/contact` - 聯絡機器人擁有者或加入社群伺服器提供回饋、獲得支援
 - `/help` - 查看機器人使用說明
@@ -142,14 +148,16 @@ MIT
 
 # Setsuna Discord Bot
 
-A Discord bot that connects to DeepSeek API and chats with users in specific channels.
+A Discord bot that connects to LLM API and chats with users in specific channels.
 
 ## Features
 
 - Connects to Discord and responds to messages in configured channels
-- Integrates with DeepSeek API
+- Integrates with multiple LLM APIs (Groq, Gemini, ChatGPT, DeepSeek)
 - Provides context-aware responses by analyzing channel message history
 - Simple channel activation/deactivation commands
+- Model selection when activating channels
+- Persistent channel settings and model preferences across restarts
 
 ## Invite Setsuna
 You can invite pre-built Setsuna to your Discord server using the following link:
@@ -171,6 +179,8 @@ For server setup tutorial, please refer to the usage below.
    DISCORD_TOKEN=your_discord_bot_token
    GEMINI_API_KEY=your_gemini_api_key
    DEEPSEEK_API_KEY=your_deepseek_api_key
+   CHATGPT_API_KEY=your_chatgpt_api_key
+   GROQ_API_KEY=your_groq_api_key
    ```
 4. Run the bot:
    ```
@@ -263,9 +273,11 @@ If you have a server or computer that can run 24/7:
 
 Once the bot is running, you can use the following commands in your Discord server:
 
-- `/setsuna activate #channel-name` - Activate the bot in designated channel.
-- `/setsuna deactivate #channel-name` - Deactivate the bot in the current channel
+- `/setsuna activate #channel-name [model]` - Activate the bot in designated channel with optional model selection (Groq, Gemini, ChatGPT, DeepSeek).
+- `/setsuna deactivate #channel-name` - Deactivate the bot in the current channel.
+- `/setsuna model [model] #channel-name` - Change the model used in the specified channel.
 - Leave #channel-name empty if you want to activate/deactivate the bot in the current channel.
+- If no model is specified, Groq will be used as default.
 
 - `/contact` - Contact the bot owner or join our community server to send feedback, get support, and hang out with us.
 - `/help` - Get help on how to use the bot.

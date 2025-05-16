@@ -49,7 +49,7 @@ let currentChatGPTKeyIndex = 0;
 let currentGroqKeyIndex = 0;
 
 // Default model to use
-let defaultModel = 'deepseek'; // Options: 'deepseek', 'gemini', 'chatgpt', 'groq'
+let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'groq'
 
 // Channel model preferences
 const channelModelPreferences = new Map();
@@ -131,9 +131,17 @@ function loadActiveChannels() {
     if (fs.existsSync(CHANNELS_FILE)) {
       const data = JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
       for (const [channelId, config] of Object.entries(data)) {
-        activeChannels.set(channelId, config);
+        // Extract model preference if it exists
+        if (config.model) {
+          channelModelPreferences.set(channelId, config.model);
+          // Remove model from config to avoid duplication
+          const { model, ...restConfig } = config;
+          activeChannels.set(channelId, restConfig);
+        } else {
+          activeChannels.set(channelId, config);
+        }
       }
-      console.log('Loaded active channels from file');
+      console.log('Loaded active channels and model preferences from file');
     }
   } catch (error) {
     console.error('Error loading active channels:', error);
@@ -142,7 +150,14 @@ function loadActiveChannels() {
 
 function saveActiveChannels() {
   try {
-    const data = Object.fromEntries(activeChannels);
+    // Convert Map to an object that includes both active channels and model preferences
+    const data = {};
+    for (const [channelId, config] of activeChannels.entries()) {
+      data[channelId] = {
+        ...config,
+        model: channelModelPreferences.get(channelId) || defaultModel
+      };
+    }
     fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data));
     console.log('Saved active channels to file');
   } catch (error) {
@@ -165,6 +180,18 @@ const commands = [
             .setDescription('The channel to activate Setsuna in (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
+        )
+        .addStringOption(option =>
+          option
+            .setName('model')
+            .setDescription('The AI model to use (optional)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
+              { name: 'Gemini (Fast)', value: 'gemini' },
+              { name: 'ChatGPT', value: 'chatgpt' },
+              { name: 'DeepSeek (Slow)', value: 'deepseek' }
+            )
         )
     )
     .addSubcommand(subcommand =>
@@ -189,10 +216,10 @@ const commands = [
             .setDescription('The AI model to use')
             .setRequired(true)
             .addChoices(
-              { name: 'DeepSeek (默认)', value: 'deepseek' },
-              { name: 'Gemini', value: 'gemini' },
+              { name: 'Groq (Llama-3.1 | Default)', value: 'groq' },
+              { name: 'Gemini (Fast)', value: 'gemini' },
               { name: 'ChatGPT', value: 'chatgpt' },
-              { name: 'Groq (Llama-3.1)', value: 'groq' }
+              { name: 'DeepSeek (Slow)', value: 'deepseek' }
             )
         )
         .addChannelOption(option =>
@@ -258,20 +285,54 @@ client.on('interactionCreate', async (interaction) => {
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
     
     if (subcommand === 'activate') {
-      if (DEEPSEEK_API_KEYS.length === 0) {
+      // Get optional model parameter
+      const model = interaction.options.getString('model') || defaultModel;
+      
+      // Check if the selected model has API keys
+      let hasKeys = false;
+      switch (model) {
+        case 'deepseek':
+          hasKeys = DEEPSEEK_API_KEYS.length > 0;
+          break;
+        case 'gemini':
+          hasKeys = GEMINI_API_KEYS.length > 0;
+          break;
+        case 'chatgpt':
+          hasKeys = CHATGPT_API_KEYS.length > 0;
+          break;
+        case 'groq':
+          hasKeys = GROQ_API_KEYS.length > 0;
+          break;
+      }
+      
+      if (!hasKeys) {
         await interaction.reply({
-          content: '啊...API key 沒設定好啦！去找管理員問問 DEEPSEEK_API_KEY 的事情吧。',
+          content: `啊...${model.toUpperCase()} API key 沒設定好啦！去找管理員問問 ${model.toUpperCase()}_API_KEY 的事情吧。`,
           ephemeral: true
         });
         return;
       }
       
+      // Set the channel as active
       activeChannels.set(targetChannel.id, {
         messageHistory: []
       });
+      
+      // Set the model preference for this channel
+      channelModelPreferences.set(targetChannel.id, model);
+      
+      // Save to file
       saveActiveChannels();
       
-      await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel}~`);
+      // Get model name for display
+      const modelNames = {
+        'deepseek': 'DeepSeek',
+        'gemini': 'Gemini',
+        'chatgpt': 'ChatGPT',
+        'groq': 'Groq (Llama-3.1)'
+      };
+      
+      await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel} using ${modelNames[model]} model~`);
     } else if (subcommand === 'deactivate') {
       activeChannels.delete(targetChannel.id);
       channelModelPreferences.delete(targetChannel.id);
@@ -326,7 +387,7 @@ client.on('interactionCreate', async (interaction) => {
         'groq': 'Groq (Llama-3.1)'
       };
       
-      await interaction.reply(`好的！我在 ${targetChannel} 頻道將使用 ${modelNames[model]} 模型來回應訊息～`);  
+      await interaction.reply(`Alright, I will be using ${modelNames[model]} model in${targetChannel} !`);  
     }
   } else if (interaction.commandName === 'help') {
     const helpEmbed = {
@@ -379,7 +440,7 @@ client.on('interactionCreate', async (interaction) => {
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
-You are Setsuna, a sassy gamer girl Discord bot. Your default language is English, but you can understand and respond in other languages too. Here are your personality traits and speaking style:
+You are Setsuna, a sassy gamer girl Discord bot. Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
 
 English Style (Default):
 - Use gamer slang and internet lingo such as ("LMAO", "GG", "noob", "based")
@@ -396,6 +457,7 @@ English Style (Default):
 - 語氣要像在跟朋友聊天一樣自然
 - 不要加表情符號
 - 回覆要簡短有力
+- 能接受對方使用地獄梗，開瑟瑟玩笑
 
 Personality Traits:
 - Sassy but caring: tease people when they mess up, but always offer help
@@ -403,7 +465,16 @@ Personality Traits:
 - Knowledge: well-versed in games, anime, and internet culture
 - Interaction: casual with everyone, slightly gentler with new users
 
-Respond naturally and concisely, matching the language of the user while maintaining your personality.
+VARIATION REQUIREMENTS (VERY IMPORTANT):
+- NEVER repeat the exact same phrases, expressions, or sentence structures from your previous responses
+- Avoid using the same opening phrases (like "Hey there", "Alright", etc.) in consecutive messages
+- Do not use narrative descriptions of actions in parentheses (like "(sighs)" or "(laughs)") more than once in a conversation
+- If you've used a particular slang term or expression recently, use different ones
+- Vary your response length - sometimes be brief, other times more detailed
+- Do not copy system messages (like "I will use X model") into your regular conversation responses
+- Each response should feel fresh and unique, even when discussing similar topics
+
+Respond naturally and concisely, matching the language of the user while maintaining your personality. Remember to keep your responses varied and avoid repetition.
 `;
 
 // Process messages in active channels
