@@ -331,6 +331,17 @@ async function saveActiveChannels() {
 // Define slash commands
 const commands = [
   new SlashCommandBuilder()
+    .setName('setprofile')
+    .setDescription('Sets the bot\'s avatar or banner.')
+    .addStringOption(option =>
+      option.setName('avatar')
+        .setDescription('Path to the avatar GIF file.')
+        .setRequired(false))
+    .addStringOption(option =>
+      option.setName('banner')
+        .setDescription('Path to the banner GIF file.')
+        .setRequired(false)),
+  new SlashCommandBuilder()
     .setName('setsuna')
     .setDescription('Control Setsuna bot')
     .addSubcommand(subcommand =>
@@ -442,7 +453,32 @@ client.once('ready', async () => {
 });
 
 // Handle slash commands
-client.on('interactionCreate', async (interaction) => {
+client.on('interactionCreate', async interaction => {
+  if (interaction.commandName === 'setprofile') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+    }
+
+    const avatarPath = interaction.options.getString('avatar');
+    const bannerPath = interaction.options.getString('banner');
+
+    try {
+      if (avatarPath) {
+        await client.user.setAvatar(avatarPath);
+        await interaction.reply({ content: 'Avatar updated successfully!', ephemeral: true });
+      } else if (bannerPath) {
+        await client.user.setBanner(bannerPath);
+        await interaction.reply({ content: 'Banner updated successfully!', ephemeral: true });
+      } else {
+        await interaction.reply({ content: 'Please provide either an avatar or a banner path.', ephemeral: true });
+      }
+    } catch (error) {
+      console.error('Error setting profile:', error);
+      await interaction.reply({ content: 'Failed to update profile. Check the console for errors.', ephemeral: true });
+    }
+    return; // Important to return after handling the command
+  }
+
   if (!interaction.isCommand()) return;
   
   if (interaction.commandName === 'setsuna') {
@@ -665,43 +701,29 @@ Respond naturally and concisely, matching the language of the user while maintai
 
 // Process messages in active channels
 // API calling functions
+const Together = require("together-ai");
+
 async function callTogetherAPI(messages) {
   // Try all available Together AI keys until one works
   let lastError = null;
   const initialKeyIndex = currentTogetherKeyIndex;
   let keysTriedCount = 0;
-  
+
   while (keysTriedCount < TOGETHER_API_KEYS.length) {
     try {
-      // Call Together AI API
-      const togetherResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getCurrentTogetherKey()}`
-        },
-        body: JSON.stringify({
-          model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
-          messages: messages,
-          max_tokens: 500,
-          temperature: 0.7
-        })
+      const together = new Together({
+        apiKey: getCurrentTogetherKey(),
       });
-      
-      const data = await togetherResponse.json();
-      
-      // Check if response contains error
-      if (data.error) {
-        // Try next key
-        lastError = new Error(data.error.message || 'API returned an error');
-        getNextTogetherKey();
-        keysTriedCount++;
-        console.log(`Together API key ${currentTogetherKeyIndex + 1}/${TOGETHER_API_KEYS.length} error: ${data.error.message || 'Unknown error'}`);
-        continue;
-      }
-      
+      // Call Together AI API
+      const response = await together.chat.completions.create({
+        messages: messages,
+        model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', // Corrected model
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
       // Extract response content
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      if (!response.choices || !response.choices[0] || !response.choices[0].message) {
         // Try next key
         lastError = new Error('Empty response from Together API');
         getNextTogetherKey();
@@ -709,20 +731,23 @@ async function callTogetherAPI(messages) {
         console.log(`Together API key ${currentTogetherKeyIndex + 1}/${TOGETHER_API_KEYS.length} returned empty response`);
         continue;
       }
-      
+
       // Success! Return the response
-      return data.choices[0].message.content;
-      
+      return response.choices[0].message.content;
     } catch (error) {
       // Try next key
       lastError = error;
+      console.error(`Together API key ${currentTogetherKeyIndex + 1}/${TOGETHER_API_KEYS.length} error: ${error.message}`);
+      if (error.message && error.message.includes('Input validation error')) {
+        console.error('Together API Input validation error details:', error.response ? await error.response.text() : 'No response details');
+      }
       getNextTogetherKey();
       keysTriedCount++;
-      console.log(`Together API key ${currentTogetherKeyIndex + 1}/${TOGETHER_API_KEYS.length} error: ${error.message}`);
     }
   }
-  
-  // If we get here, all keys failed
+
+  // All keys failed, throw the last error encountered
+  console.error('All Together API keys failed.');
   throw lastError || new Error('All Together API keys failed');
 }
 
