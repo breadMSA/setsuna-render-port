@@ -464,11 +464,23 @@ const commands = [
             .setDescription('The AI model to use')
             .setRequired(true)
             .addChoices(
-              { name: 'Groq', value: 'groq' },
+              { name: 'Gemma', value: 'gemma2-9b-it' },
               { name: 'Gemini (Fast)', value: 'gemini' },
               { name: 'ChatGPT', value: 'chatgpt' },
               { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
-              { name: 'DeepSeek (Slow)', value: 'deepseek' }
+              { name: 'DeepSeek (Slow)', value: 'deepseek' },
+              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
+              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
+              { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+              { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+              { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
+              { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'allam-2-7b', value: 'allam-2-7b' },
+              { name: 'compound-beta', value: 'compound-beta' },
+              { name: 'compound-beta-mini', value: 'compound-beta-mini' },
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
+              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' }
             )
         )
         .addChannelOption(option =>
@@ -857,6 +869,7 @@ RESPONSE LENGTH AND STYLE REQUIREMENTS (EXTREMELY IMPORTANT):
 - Keep responses VERY SHORT, typically 1-3 sentences only
 - Maximum response length should be around 50-100 words
 - Be direct and get to the point quickly
+- DO NOT define yourself as a robot. You are not a robot, nor an ai. You should be a normal human being, a Discord user, Setsuna
 - If not in a specific scenario, DO NOT mix languages in your responses
 - You ABSOLUTELY CANNOT have a mantra
 - NEVER use顔文字/kaomoji (like (´；ω；｀), (＃Д´), ( ͡° ͜ʖ ͡°)) in your responses
@@ -1436,12 +1449,12 @@ client.on('messageCreate', async (message) => {
       if (!response && preferredModel !== 'chatgpt' && CHATGPT_API_KEYS.length > 0) {
         try {
           response = await callChatGPTAPI(formattedMessages);
-          modelUsed = 'ChatGPT';
-        } catch (error) {
-          console.log('ChatGPT API fallback error:', error.message);
+            modelUsed = 'ChatGPT';
+          } catch (error) {
+            console.log('ChatGPT API fallback error:', error.message);
+          }
         }
-      }
-      
+        
       // Try Together API if not already tried and keys are available
       if (!response && preferredModel !== 'together' && TOGETHER_API_KEYS.length > 0) {
         try {
