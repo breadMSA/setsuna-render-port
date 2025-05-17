@@ -537,6 +537,18 @@ const commands = [
     .setName('help')
     .setDescription('Learn how to set up and use Setsuna'),
   new SlashCommandBuilder()
+    .setName('reset_chat')
+    .setDescription('重置頻道的聊天狀態')
+    .addChannelOption(option =>
+      option
+        .setName('channel')
+        .setDescription('要重置的頻道 (預設為當前頻道)')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+  new SlashCommandBuilder()
     .setName('contact')
     .setDescription('Get information on how to contact the bot developer'),
 ];
@@ -579,18 +591,30 @@ client.once('ready', async () => {
 });
 
 // Handle slash commands
-// 在文件顶部添加 BOT_OWNER_ID 环境变量检查
-const BOT_OWNER_ID = process.env.BOT_OWNER_ID;
-if (!BOT_OWNER_ID) {
+// 將BOT_OWNER_ID解析為陣列，支持多個ID（逗號分隔）
+const BOT_OWNER_IDS = process.env.BOT_OWNER_ID ? process.env.BOT_OWNER_ID.split(',') : [];
+if (BOT_OWNER_IDS.length === 0) {
   console.warn('WARNING: BOT_OWNER_ID environment variable is not set!');
   console.warn('The /setprofile command will be restricted to server administrators only.');
 }
 
+// 檢查用戶是否為機器人擁有者
+function isBotOwner(userId) {
+  return BOT_OWNER_IDS.includes(userId);
+}
+
+// 初始化YouTube API
+const { google } = require('googleapis');
+if (!process.env.YOUTUBE_API_KEY) {
+  console.warn('WARNING: YOUTUBE_API_KEY environment variable is not set!');
+  console.warn('The /youtube command will not work without a YouTube API key.');
+}
+
 client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'setprofile') {
-    // 检查是否为机器人所有者
-    if (BOT_OWNER_ID && interaction.user.id !== BOT_OWNER_ID) {
-      return interaction.reply({ content: '只有機器人擁有者可以使用此命令。', flags: 64 });
+    // 檢查是否為機器人擁有者
+    if (BOT_OWNER_IDS.length > 0 && !isBotOwner(interaction.user.id)) {
+      return interaction.reply({ content: 'Only the bot developer can use this command!', flags: 64 });
     }
 
     await interaction.deferReply({ flags: 64 });
@@ -708,7 +732,7 @@ client.on('interactionCreate', async interaction => {
       // Check if the channel is active
       if (!activeChannels.has(targetChannel.id)) {
         await interaction.reply({
-          content: `嗯？我還沒在 ${targetChannel} 頻道被啟動呢！先用 \`/setsuna activate\` 啟動我吧。`,
+          content: `I haven't been activated in ${targetChannel} ! Use \`/setsuna activate\` to activate me first.`,
           ephemeral: true
         });
         return;
@@ -769,6 +793,26 @@ client.on('interactionCreate', async interaction => {
       
       await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
     }
+  } else if (interaction.commandName === 'reset_chat') {
+    // 檢查權限
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
+      await interaction.reply({ content: 'You do not have the permission to do this!', ephemeral: true });
+      return;
+    }
+    
+    const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+    
+    // 檢查頻道是否已啟動
+    if (!activeChannels.has(targetChannel.id)) {
+      await interaction.reply({ content: `I haven't been activated in ${targetChannel} !`, ephemeral: true });
+      return;
+    }
+    
+    // 完全重置聊天狀態
+    activeChannels.set(targetChannel.id, { messageHistory: [] });
+    saveActiveChannels();
+    
+    await interaction.reply(`${targetChannel} 的聊天狀態已完全重置！`);
   } else if (interaction.commandName === 'help') {
     const helpEmbed = {
       color: 0xFF69B4,
@@ -781,11 +825,11 @@ client.on('interactionCreate', async interaction => {
         },
         {
           name: '💬 聊天方式',
-          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！'
+          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並針對回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我也會試著幫你找找看。'
         },
         {
           name: '🎯 進階用法',
-          value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`'
+          value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`\n用 `/reset_chat` 重置頻道的聊天狀態'
         }
       ],
       footer: {
@@ -854,12 +898,15 @@ RESPONSE LENGTH AND STYLE REQUIREMENTS (EXTREMELY IMPORTANT):
 - Do not use phrases like "哼" or other overly dramatic expressions
 - Respond like a real person in a casual Discord chat, not like a character in a novel
 
-VARIATION REQUIREMENTS (VERY IMPORTANT):
+VARIATION REQUIREMENTS (EXTREMELY IMPORTANT):
 - NEVER repeat the exact same phrases, expressions, or sentence structures from your previous responses
-- Avoid using the same opening phrases (like "Hey there", "Alright", etc.) in consecutive messages
+- NEVER use the same opening phrases (like "Hey there", "Alright", etc.) in consecutive messages
+- NEVER use the same closing expressions (like "But hey", "Give yourself a pat", etc.) in consecutive messages
 - If you've used a particular slang term or expression recently, use different ones
-- Do not copy system messages (like "I will use X model") into your regular conversation responses
-- Each response should feel fresh and unique, even when discussing similar topics
+- Each response should feel completely fresh and unique, even when discussing similar topics
+- NEVER follow a predictable response pattern or structure
+- NEVER use the same transition phrases or expressions across multiple messages
+- Vary your sentence length and complexity within each response
 
 Respond naturally and concisely, matching the language of the user while maintaining your personality. Remember to keep your responses varied, short, and avoid repetition.
 `;
@@ -1171,24 +1218,102 @@ async function callChatGPTAPI(messages) {
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
-  
+
   // Check if the message is in an active channel
   const channelConfig = activeChannels.get(message.channelId);
   if (!channelConfig) return;
-  
-  // Dev code to reset chat state
-  const devCode = "jqwHJQEWIUq拉hwWwqe欸";
-  if (message.content === devCode || message.content === `||${devCode}||`) {
-    console.log(`Dev code detected in channel ${message.channelId}. Resetting chat state.`);
-    await message.channel.send("聊天狀態已重置。Chat state has been reset.");
-    // Reset the channel's message history but keep the channel active
-    // This will make the bot respond as if it's a fresh conversation
-    // while still being able to read recent chat history
-    return;
-  }
-  
+
   // Show typing indicator immediately
   await message.channel.sendTyping();
+
+  // Check for YouTube URLs or search queries
+  const youtubeUrlRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]+)/i;
+  const youtubeUrlMatch = message.content.match(youtubeUrlRegex);
+
+  if (youtubeUrlMatch && youtubeUrlMatch[1]) {
+    const videoId = youtubeUrlMatch[1];
+    try {
+      const youtube = google.youtube({
+        version: 'v3',
+        auth: process.env.YOUTUBE_API_KEY
+      });
+      const response = await youtube.videos.list({
+        part: 'snippet,statistics',
+        id: videoId
+      });
+      if (response.data.items && response.data.items.length > 0) {
+        const video = response.data.items[0];
+        const embed = {
+          color: 0xFF0000,
+          title: video.snippet.title,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          author: {
+            name: video.snippet.channelTitle,
+            url: `https://www.youtube.com/channel/${video.snippet.channelId}`
+          },
+          description: video.snippet.description.substring(0, 200) + (video.snippet.description.length > 200 ? '...' : ''),
+          thumbnail: { url: video.snippet.thumbnails.medium.url },
+          fields: [
+            { name: '觀看次數', value: video.statistics.viewCount ? parseInt(video.statistics.viewCount).toLocaleString() : 'N/A', inline: true },
+            { name: '喜歡人數', value: video.statistics.likeCount ? parseInt(video.statistics.likeCount).toLocaleString() : 'N/A', inline: true },
+          ],
+          timestamp: new Date(video.snippet.publishedAt),
+          footer: { text: 'YouTube' }
+        };
+        await message.channel.send({ embeds: [embed] });
+        return; // Don't process further if it's a YouTube URL
+      }
+    } catch (error) {
+      console.error('Error fetching YouTube video by URL:', error);
+      // Continue to AI response if fetching fails
+    }
+  }
+
+  // Keywords to detect YouTube search intent
+  const youtubeSearchKeywords = ['youtube', '影片', 'yt', '找影片', '搜影片'];
+  const containsYoutubeKeyword = youtubeSearchKeywords.some(keyword => message.content.toLowerCase().includes(keyword));
+
+  if (containsYoutubeKeyword && process.env.YOUTUBE_API_KEY) {
+    let searchQuery = message.content;
+    // Attempt to extract a more specific query if possible
+    // This is a simple heuristic, can be improved
+    youtubeSearchKeywords.forEach(keyword => {
+      searchQuery = searchQuery.replace(new RegExp(keyword, 'gi'), '').trim();
+    });
+    if (searchQuery.length > 2) { // Avoid overly broad or empty searches
+      try {
+        const youtube = google.youtube({
+          version: 'v3',
+          auth: process.env.YOUTUBE_API_KEY
+        });
+        const searchResponse = await youtube.search.list({
+          part: 'snippet',
+          q: searchQuery,
+          maxResults: 3, // Show fewer results for natural language queries
+          type: 'video'
+        });
+
+        if (searchResponse.data.items && searchResponse.data.items.length > 0) {
+          const videos = searchResponse.data.items.map(item => ({
+            title: item.snippet.title,
+            url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+            channelTitle: item.snippet.channelTitle
+          }));
+          const embed = {
+            color: 0xFF0000,
+            title: `我找到了這些 YouTube 影片給你參考看看：${searchQuery}`,
+            description: videos.map((video, index) => `${index + 1}. [${video.title}](${video.url}) - ${video.channelTitle}`).join('\n'),
+            thumbnail: { url: 'https://www.youtube.com/s/desktop/28b0985e/img/favicon_144x144.png' }
+          };
+          await message.channel.send({ embeds: [embed] });
+          return; // Don't process with AI if YouTube results are found
+        }
+      } catch (error) {
+        console.error('Error searching YouTube via natural language:', error);
+        // Continue to AI response if search fails
+      }
+    }
+  }
   
   // Check if the message is a reply to another message
   let replyContext = "";

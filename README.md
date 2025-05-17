@@ -3,23 +3,24 @@
 
 # Setsuna Discord 機器人
 
-一個能連接 LLM API 並在指定頻道與用戶聊天的 Discord 機器人。
+一個能連接 LLM API 並在指定頻道與用戶聊天的 Discord AI 機器人。
 
 ## 功能特色
 
 - 連接 Discord 並在設定的頻道回應訊息
 - 整合多種 LLM API（Groq、Gemini、ChatGPT、Together AI、DeepSeek）
 - 透過分析頻道訊息歷史，提供有脈絡的回覆
+- 能夠識別用戶指定回覆的訊息，並針對回覆內容做出相應回應
 - 支援簡單的頻道啟用／停用指令
 - 可在啟用頻道時選擇使用的模型
-- 支援選擇特定的 Groq 模型，包括 llama-3.1、llama-3.3、gemma2、llama-4 等多種模型
+- 支援選擇特定的 Groq 模型，包括 llama-3.1、llama-3.3、gemma2、llama-4 等17種模型
 - 頻道設定和模型偏好持久化保存到 GitHub，重啟後不會遺失
 
 ## 邀請 Setsuna
 你可以用以下連結邀請 Setsuna 到你的 Discord 伺服器：
 [邀請 Setsuna 到你的 Discord 伺服器](https://discord.com/oauth2/authorize?client_id=1372437324595462206&permissions=1689917160152128&integration_type=0&scope=applications.commands+bot)
 
-伺服器設定教學請參考下方使用說明。
+伺服器設定教學請參考下方[使用方法](https://github.com/breadMSA/setsuna-discord-bot?tab=readme-ov-file#使用方法)。
 
 ## 安裝步驟
 
@@ -37,7 +38,9 @@
    DEEPSEEK_API_KEY=你的 DeepSeek API 金鑰
    CHATGPT_API_KEY=你的 ChatGPT API 金鑰
    GROQ_API_KEY=你的 Groq API 金鑰
-   ```
+   YOUTUBE_API_KEY=你的 YouTube API 金鑰 (用於 YouTube 影片搜尋和 URL 預覽功能)
+   BOT_OWNER_ID=你的Discord用戶ID,其他管理員ID (若有多個，請用逗號隔開，例如：123456789012345678,987654321098765432)
+```
 4. 啟動機器人：
    ```
    npm start
@@ -135,9 +138,18 @@
 - 若不指定 #頻道名稱，則預設為當前頻道
 - 若不指定模型，則預設使用 Groq
 - 若選擇 Groq 但不指定 groq_model，則預設使用 llama-3.1-8b-instant
+- `/reset_chat [channel]` - (需有管理頻道權限) 重置指定或當前頻道的聊天記錄
 
-- `/contact` - 聯絡機器人擁有者或加入社群伺服器提供回饋、獲得支援
+- `/contact` - 聯絡機器人開發者或加入我們的社群伺服器提供回饋、獲得支援
 - `/help` - 查看機器人使用說明
+
+### 💬 與 Setsuna 聊天
+
+- 在 Setsuna 已啟用的頻道中直接輸入訊息即可開始聊天。
+- Setsuna 會記住頻道中最近的 50 則訊息以了解對話脈絡。
+- 你可以回覆 Setsuna 或其他用戶的訊息，Setsuna 能夠理解回覆的上下文。
+- 如果你傳送 YouTube 影片的網址，Setsuna 會顯示影片的預覽資訊。
+- 如果你請 Setsuna 幫忙找 YouTube 影片 (例如：「幫我找貓咪的影片」)，Setsuna 會嘗試搜尋並提供相關的影片連結。
 
 ## 授權條款
 
@@ -150,23 +162,24 @@ MIT
 
 # Setsuna Discord Bot
 
-A Discord bot that connects to LLM API and chats with users in specific channels.
+A Discord AI bot that connects to LLM API and chats with users in specific channels.
 
 ## Features
 
 - Connects to Discord and responds to messages in configured channels
 - Integrates with multiple LLM APIs (Groq, Gemini, ChatGPT, Together AI, DeepSeek)
 - Provides context-aware responses by analyzing channel message history
+- Recognizes which messages did users reply to, and responds accordingly to the reply context
 - Simple channel activation/deactivation commands
 - Model selection when activating channels
-- Supports selecting specific Groq models, including llama-3.1, llama-3.3, gemma2, llama-4, and more
+- Supports selecting 17 specific Groq models, including llama-3.1, llama-3.3, gemma2, llama-4, and more
 - Persistent channel settings and model preferences stored on GitHub across restarts
 
 ## Invite Setsuna
 You can invite pre-built Setsuna to your Discord server using the following link:
 [Invite Setsuna to your Discord server](https://discord.com/oauth2/authorize?client_id=1372437324595462206&permissions=1689917160152128&integration_type=0&scope=applications.commands+bot) 
 
-For server setup tutorial, please refer to the usage below.
+For server setup tutorial, please refer to the [usage](https://github.com/breadMSA/setsuna-discord-bot?tab=readme-ov-file#usage) below.
 
 ## Setup
 
@@ -184,6 +197,8 @@ For server setup tutorial, please refer to the usage below.
    DEEPSEEK_API_KEY=your_deepseek_api_key
    CHATGPT_API_KEY=your_chatgpt_api_key
    GROQ_API_KEY=your_groq_api_key
+   YOUTUBE_API_KEY=your_youtube_api_key (Required for YouTube video search and URL preview features)
+   BOT_OWNER_ID=your_discord_user_id,other_admin_id (For multiple owners, separate IDs with a comma, e.g., `123456789012345678,987654321098765432`)
    ```
 4. Run the bot:
    ```
@@ -278,13 +293,22 @@ Once the bot is running, you can use the following commands in your Discord serv
 
 - `/setsuna activate #channel-name [model] [groq_model]` - Activate the bot in designated channel with optional model selection (Groq, Gemini, ChatGPT, Together AI, DeepSeek) and specific Groq model.
 - `/setsuna deactivate #channel-name` - Deactivate the bot in the current channel.
-- `/setsuna model [model] [groq_model] #channel-name` - Change the model used in the specified channel and specific Groq model.
-- Leave #channel-name empty if you want to activate/deactivate the bot in the current channel.
-- If no model is specified, Groq will be used as default.
-- If Groq is selected but no groq_model is specified, llama-3.1-8b-instant will be used as default.
+- `/setsuna model [model] [groq_model] #channel-name` - Change the model and specific Groq model used in the specified channel
+- If #channel_name is not specified, defaults to the current channel
+- If model is not specified, defaults to Groq
+- If Groq is selected but no groq_model is specified, defaults to llama-3.1-8b-instant
+- `/reset_chat [channel]` - (Manage Channels permission required) Resets the chat history for Setsuna in the specified or current channel.
 
-- `/contact` - Contact the bot owner or join our community server to send feedback, get support, and hang out with us.
-- `/help` - Get help on how to use the bot.
+- `/contact` - Contact the bot developer or join our community server for feedback and support
+- `/help` - View bot usage instructions
+
+### 💬 Chatting with Setsuna
+
+- Simply type your message in a channel where Setsuna is active.
+- Setsuna remembers the last 50 messages in the channel for context.
+- You can reply to Setsuna's messages or other users' messages, and Setsuna will understand the context.
+- If you send a YouTube video URL, Setsuna will show a preview of the video.
+- If you ask Setsuna to find a YouTube video (e.g., "help me find a cat video"), Setsuna will try to search and provide relevant video links.
 
 ## License
 
