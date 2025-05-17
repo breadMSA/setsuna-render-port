@@ -631,7 +631,7 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'setsuna') {
     // Check if user has admin permissions
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      await interaction.reply({ content: 'You don\'t have permission to use this command! Nice try though (｡•̀ᴗ-)✧', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to use this command! Nice try though (｡•̀ᴗ-)✧', flags: 64 });
       return;
     }
     
@@ -669,13 +669,13 @@ client.on('interactionCreate', async interaction => {
         if (!hasKeys) {
           await interaction.reply({
             content: `Oops! ${model.toUpperCase()} API key is not set up. Please ask the admin about the ${model.toUpperCase()}_API_KEY.`,
-            ephemeral: true
+            flags: 64
           });
           return;
         }
 
         if (model !== 'groq' && groqModel) {
-          await interaction.reply({ content: 'You can only select a specific Groq model if you choose Groq as the main model.', ephemeral: true });
+          await interaction.reply({ content: 'You can only select a specific Groq model if you choose Groq as the main model.', flags: 64 });
           return;
         }
         
@@ -718,7 +718,7 @@ client.on('interactionCreate', async interaction => {
       if (!activeChannels.has(targetChannel.id)) {
         await interaction.reply({
           content: `I haven't been activated in ${targetChannel}! Use \`/setsuna status\` with 'Activate' option to activate me first.`,
-          ephemeral: true
+          flags: 64
         });
         return;
       }
@@ -746,13 +746,13 @@ client.on('interactionCreate', async interaction => {
       if (!hasKeys) {
         await interaction.reply({
           content: `Oops! ${model.toUpperCase()} API key is not set up. Please ask the admin about the ${model.toUpperCase()}_API_KEY.`,
-          ephemeral: true
+          flags: 64
         });
         return;
       }
 
       if (model !== 'groq' && groqModel) {
-        await interaction.reply({ content: 'You can only select a specific Groq model if you choose Groq as the main model.', ephemeral: true });
+        await interaction.reply({ content: 'You can only select a specific Groq model if you choose Groq as the main model.', flags: 64 });
         return;
       }
       
@@ -779,14 +779,14 @@ client.on('interactionCreate', async interaction => {
   } else if (interaction.commandName === 'reset_chat') {
     // 檢查權限
     if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
-      await interaction.reply({ content: 'You do not have the permission to do this!', ephemeral: true });
+      await interaction.reply({ content: 'You do not have the permission to do this!', flags: 64 });
       return;
     }
     
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
     
     if (!activeChannels.has(targetChannel.id)) {
-      await interaction.reply({ content: `I haven't been activated in ${targetChannel} !`, ephemeral: true });
+      await interaction.reply({ content: `I haven't been activated in ${targetChannel} !`, flags: 64 });
       return;
     }
     
@@ -952,6 +952,12 @@ async function callTogetherAPI(messages) {
   // All keys failed, throw the last error encountered
   console.error('All Together API keys failed.');
   throw lastError || new Error('All Together API keys failed');
+}
+
+async function callGroqAPI(messages, channelId) {
+  // Use Groq API request format
+  const response = await callGroqAPI(messageContent, targetChannel.id);
+  // Handle response
 }
 
 async function callGroqAPI(messages, channelId) {
