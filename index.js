@@ -56,7 +56,7 @@ let currentTogetherKeyIndex = 0;
 let currentGroqKeyIndex = 0;
 
 // Default model to use
-let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'together', 'groq'
+let defaultModel = 'gemma'; // Options: 'deepseek', 'gemini', 'chatgpt', 'together', 'groq', 'gemma'
 
 // Channel model preferences
 const channelModelPreferences = new Map();
@@ -446,11 +446,23 @@ const commands = [
             .setDescription('The AI model to use (only applies when activating)')
             .setRequired(false)
             .addChoices(
-                  { name: 'Groq', value: 'groq' },
+                  { name: 'Gemma (Default)', value: 'gemma2-9b-it' },
                   { name: 'Gemini (Fast)', value: 'gemini' },
                   { name: 'ChatGPT', value: 'chatgpt' },
                   { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
-                  { name: 'DeepSeek (Slow)', value: 'deepseek' }
+                  { name: 'DeepSeek (Slow)', value: 'deepseek' },
+                  { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
+                  { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
+                  { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
+                  { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+                  { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+                  { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
+                  { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+                  { name: 'allam-2-7b', value: 'allam-2-7b' },
+                  { name: 'compound-beta', value: 'compound-beta' },
+                  { name: 'compound-beta-mini', value: 'compound-beta-mini' },
+                  { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
+                  { name: 'llama-3.1-8b', value: 'llama-3.1-8b' }
                 )
         )
     )
@@ -464,12 +476,12 @@ const commands = [
             .setDescription('The AI model to use')
             .setRequired(true)
             .addChoices(
-              { name: 'Gemma', value: 'gemma2-9b-it' },
+              { name: 'Gemma (Default)', value: 'gemma2-9b-it' },
               { name: 'Gemini (Fast)', value: 'gemini' },
               { name: 'ChatGPT', value: 'chatgpt' },
               { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
               { name: 'DeepSeek (Slow)', value: 'deepseek' },
-              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
               { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
@@ -1222,25 +1234,8 @@ client.on('messageCreate', async (message) => {
       });
       if (response.data.items && response.data.items.length > 0) {
         const video = response.data.items[0];
-        const embed = {
-          color: 0xFF0000,
-          title: video.snippet.title,
-          url: `https://www.youtube.com/watch?v=${videoId}`,
-          author: {
-            name: video.snippet.channelTitle,
-            url: `https://www.youtube.com/channel/${video.snippet.channelId}`
-          },
-          description: video.snippet.description.substring(0, 200) + (video.snippet.description.length > 200 ? '...' : ''),
-          thumbnail: { url: video.snippet.thumbnails.medium.url },
-          fields: [
-            { name: '觀看次數', value: video.statistics.viewCount ? parseInt(video.statistics.viewCount).toLocaleString() : 'N/A', inline: true },
-            { name: '喜歡人數', value: video.statistics.likeCount ? parseInt(video.statistics.likeCount).toLocaleString() : 'N/A', inline: true },
-          ],
-          timestamp: new Date(video.snippet.publishedAt),
-          footer: { text: 'YouTube' }
-        };
-        await message.channel.send({ embeds: [embed] });
-        return; // Don't process further if it's a YouTube URL
+        youtubeInfo = `[YouTube Video Info]\nTitle: ${video.snippet.title}\nChannel: ${video.snippet.channelTitle}\nURL: https://www.youtube.com/watch?v=${videoId}\nDescription: ${video.snippet.description.substring(0, 200) + (video.snippet.description.length > 200 ? '...' : '')}\nView Count: ${video.statistics.viewCount ? parseInt(video.statistics.viewCount).toLocaleString() : 'N/A'}\nLike Count: ${video.statistics.likeCount ? parseInt(video.statistics.likeCount).toLocaleString() : 'N/A'}\nPublished At: ${new Date(video.snippet.publishedAt).toISOString()}\n`;
+        console.log('Extracted YouTube video info from URL.');
       }
     } catch (error) {
       console.error('Error fetching YouTube video by URL:', error);
@@ -1252,7 +1247,7 @@ client.on('messageCreate', async (message) => {
   const youtubeSearchKeywords = ['youtube', '影片', 'yt', '找影片', '搜影片'];
   const containsYoutubeKeyword = youtubeSearchKeywords.some(keyword => message.content.toLowerCase().includes(keyword));
 
-  if (containsYoutubeKeyword && process.env.YOUTUBE_API_KEY) {
+  if (!youtubeUrlMatch && containsYoutubeKeyword && process.env.YOUTUBE_API_KEY) { // Only search if no direct URL was found
     let searchQuery = message.content;
     // Attempt to extract a more specific query if possible
     // This is a simple heuristic, can be improved
@@ -1278,14 +1273,8 @@ client.on('messageCreate', async (message) => {
             url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
             channelTitle: item.snippet.channelTitle
           }));
-          const embed = {
-            color: 0xFF0000,
-            title: `我找到了這些 YouTube 影片給你參考看看：${searchQuery}`,
-            description: videos.map((video, index) => `${index + 1}. [${video.title}](${video.url}) - ${video.channelTitle}`).join('\n'),
-            thumbnail: { url: 'https://www.youtube.com/s/desktop/28b0985e/img/favicon_144x144.png' }
-          };
-          await message.channel.send({ embeds: [embed] });
-          return; // Don't process with AI if YouTube results are found
+          youtubeInfo = `[YouTube Search Results for ${searchQuery}]\n` + videos.map((video, index) => `${index + 1}. Title: ${video.title}\nChannel: ${video.channelTitle}\nURL: ${video.url}`).join('\n') + '\n';
+          console.log('Extracted YouTube search results.');
         }
       } catch (error) {
         console.error('Error searching YouTube via natural language:', error);
