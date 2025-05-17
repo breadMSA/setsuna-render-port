@@ -61,6 +61,12 @@ let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'togethe
 // Channel model preferences
 const channelModelPreferences = new Map();
 
+// Map to store channel-specific Groq model preferences
+const channelGroqModelPreferences = new Map();
+
+// Default Groq model to use if no preference is set
+const defaultGroqModel = 'llama-3.1-8b-instant';
+
 // Function to get next API key for each model
 function getNextDeepseekKey() {
   currentDeepseekKeyIndex = (currentDeepseekKeyIndex + 1) % DEEPSEEK_API_KEYS.length;
@@ -126,7 +132,11 @@ const statusList = [
   '垃圾桶軍團',
   'Honkai: Star Rail',
   'Valorant',
-  '死線前趕作業遊戲'
+  '死線前趕作業遊戲',
+  'with your girlfriend',
+  'with your girlfriend and your feelings',
+  'Genshin Impact',
+
 ];
 
 // Function to set random status
@@ -176,8 +186,14 @@ async function loadActiveChannels() {
         // Extract model preference if it exists
         if (config.model) {
           channelModelPreferences.set(channelId, config.model);
-          // Remove model from config to avoid duplication
-          const { model, ...restConfig } = config;
+          
+          // Extract Groq model preference if it exists
+          if (config.groqModel) {
+            channelGroqModelPreferences.set(channelId, config.groqModel);
+          }
+          
+          // Remove model and groqModel from config to avoid duplication
+          const { model, groqModel, ...restConfig } = config;
           activeChannels.set(channelId, restConfig);
         } else {
           activeChannels.set(channelId, config);
@@ -208,8 +224,14 @@ async function loadActiveChannels() {
           // Extract model preference if it exists
           if (config.model) {
             channelModelPreferences.set(channelId, config.model);
-            // Remove model from config to avoid duplication
-            const { model, ...restConfig } = config;
+            
+            // Extract Groq model preference if it exists
+            if (config.groqModel) {
+              channelGroqModelPreferences.set(channelId, config.groqModel);
+            }
+            
+            // Remove model and groqModel from config to avoid duplication
+            const { model, groqModel, ...restConfig } = config;
             activeChannels.set(channelId, restConfig);
           } else {
             activeChannels.set(channelId, config);
@@ -237,8 +259,14 @@ async function loadActiveChannels() {
           // Extract model preference if it exists
           if (config.model) {
             channelModelPreferences.set(channelId, config.model);
-            // Remove model from config to avoid duplication
-            const { model, ...restConfig } = config;
+            
+            // Extract Groq model preference if it exists
+            if (config.groqModel) {
+              channelGroqModelPreferences.set(channelId, config.groqModel);
+            }
+            
+            // Remove model and groqModel from config to avoid duplication
+            const { model, groqModel, ...restConfig } = config;
             activeChannels.set(channelId, restConfig);
           } else {
             activeChannels.set(channelId, config);
@@ -262,7 +290,8 @@ async function saveActiveChannels() {
     for (const [channelId, config] of activeChannels.entries()) {
       data[channelId] = {
         ...config,
-        model: channelModelPreferences.get(channelId) || defaultModel
+        model: channelModelPreferences.get(channelId) || defaultModel,
+        groqModel: channelGroqModelPreferences.get(channelId) || defaultGroqModel
       };
     }
     
@@ -329,21 +358,50 @@ async function saveActiveChannels() {
 }
 
 // Define slash commands
+// 添加 setprofile 命令定义
 const commands = [
   new SlashCommandBuilder()
     .setName('setprofile')
-    .setDescription('Sets the bot\'s avatar or banner.')
+    .setDescription('Set the bot\'s profile avatar or banner')
     .addStringOption(option =>
-      option.setName('avatar')
-        .setDescription('Path to the avatar GIF file.')
-        .setRequired(false))
+      option
+        .setName('avatar')
+        .setDescription('Path to avatar image file')
+        .setRequired(false)
+    )
     .addStringOption(option =>
-      option.setName('banner')
-        .setDescription('Path to the banner GIF file.')
-        .setRequired(false)),
+      option
+        .setName('banner')
+        .setDescription('Path to banner image file')
+        .setRequired(false)
+    )
+    .addAttachmentOption(option =>
+      option
+        .setName('avatar_file')
+        .setDescription('Upload an avatar image file')
+        .setRequired(false)
+    )
+    .addAttachmentOption(option =>
+      option
+        .setName('banner_file')
+        .setDescription('Upload a banner image file')
+        .setRequired(false)
+    )
+    .addStringOption(option =>
+      option
+        .setName('avatar_url')
+        .setDescription('URL to avatar image')
+        .setRequired(false)
+    )
+    .addStringOption(option =>
+      option
+        .setName('banner_url')
+        .setDescription('URL to banner image')
+        .setRequired(false)
+    ),
   new SlashCommandBuilder()
     .setName('setsuna')
-    .setDescription('Control Setsuna bot')
+    .setDescription('Control Setsuna AI assistant')
     .addSubcommand(subcommand =>
       subcommand
         .setName('activate')
@@ -361,12 +419,38 @@ const commands = [
             .setDescription('The AI model to use (optional)')
             .setRequired(false)
             .addChoices(
-                  { name: 'Groq (Llama-3.1 | Default | Not very smart)', value: 'groq' },
+                  { name: 'Groq', value: 'groq' },
                   { name: 'Gemini (Fast)', value: 'gemini' },
                   { name: 'ChatGPT', value: 'chatgpt' },
                   { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
                   { name: 'DeepSeek (Slow)', value: 'deepseek' }
                 )
+        )
+        .addStringOption(option =>
+          option
+            .setName('groq_model')
+            .setDescription('Select a specific Groq model (only applies when Groq is selected)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
+              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+              { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
+              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
+              { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+              { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+              { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
+              { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'allam-2-7b', value: 'allam-2-7b' },
+              { name: 'compound-beta', value: 'compound-beta' },
+              { name: 'compound-beta-mini', value: 'compound-beta-mini' },
+              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
+              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
+              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
+              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' },
+              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+            )
         )
     )
     .addSubcommand(subcommand =>
@@ -391,11 +475,36 @@ const commands = [
             .setDescription('The AI model to use')
             .setRequired(true)
             .addChoices(
-              { name: 'Groq (Llama-3.1 | Default | Not very smart)', value: 'groq' },
+              { name: 'Groq', value: 'groq' },
               { name: 'Gemini (Fast)', value: 'gemini' },
               { name: 'ChatGPT', value: 'chatgpt' },
               { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
               { name: 'DeepSeek (Slow)', value: 'deepseek' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('groq_model')
+            .setDescription('Select a specific Groq model (only applies when Groq is selected)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
+              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+              { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
+              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
+              { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+              { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+              { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
+              { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'allam-2-7b', value: 'allam-2-7b' },
+              { name: 'compound-beta', value: 'compound-beta' },
+              { name: 'compound-beta-mini', value: 'compound-beta-mini' },
+              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
+              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
+              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
+              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' }
             )
         )
         .addChannelOption(option =>
@@ -453,30 +562,54 @@ client.once('ready', async () => {
 });
 
 // Handle slash commands
+// 在文件顶部添加 BOT_OWNER_ID 环境变量检查
+const BOT_OWNER_ID = process.env.BOT_OWNER_ID;
+if (!BOT_OWNER_ID) {
+  console.warn('WARNING: BOT_OWNER_ID environment variable is not set!');
+  console.warn('The /setprofile command will be restricted to server administrators only.');
+}
+
 client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'setprofile') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+    // 检查是否为机器人所有者
+    if (BOT_OWNER_ID && interaction.user.id !== BOT_OWNER_ID) {
+      return interaction.reply({ content: '只有機器人擁有者可以使用此命令。', flags: 64 });
     }
 
     await interaction.deferReply({ flags: 64 });
 
     const avatarPath = interaction.options.getString('avatar');
     const bannerPath = interaction.options.getString('banner');
+    const avatarAttachment = interaction.options.getAttachment('avatar_file');
+    const bannerAttachment = interaction.options.getAttachment('banner_file');
+    const avatarUrl = interaction.options.getString('avatar_url');
+    const bannerUrl = interaction.options.getString('banner_url');
 
     try {
       if (avatarPath) {
         await client.user.setAvatar(avatarPath);
-        await interaction.editReply({ content: 'Avatar updated successfully!' });
+        await interaction.editReply({ content: '頭像更新成功！' });
       } else if (bannerPath) {
         await client.user.setBanner(bannerPath);
-        await interaction.editReply({ content: 'Banner updated successfully!' });
+        await interaction.editReply({ content: '橫幅更新成功！' });
+      } else if (avatarAttachment) {
+        await client.user.setAvatar(avatarAttachment.url);
+        await interaction.editReply({ content: '頭像更新成功！' });
+      } else if (bannerAttachment) {
+        await client.user.setBanner(bannerAttachment.url);
+        await interaction.editReply({ content: '橫幅更新成功！' });
+      } else if (avatarUrl) {
+        await client.user.setAvatar(avatarUrl);
+        await interaction.editReply({ content: '頭像更新成功！' });
+      } else if (bannerUrl) {
+        await client.user.setBanner(bannerUrl);
+        await interaction.editReply({ content: '橫幅更新成功！' });
       } else {
-        await interaction.editReply({ content: 'Please provide either an avatar or a banner path.' });
+        await interaction.editReply({ content: '請提供頭像或橫幅的路徑、附件或URL。' });
       }
     } catch (error) {
       console.error('Error setting profile:', error);
-      await interaction.editReply({ content: 'Failed to update profile. Check the console for errors.' });
+      await interaction.editReply({ content: '更新個人資料失敗。請檢查控制台以獲取錯誤信息。' });
     }
     return; // Important to return after handling the command
   }
@@ -595,6 +728,19 @@ client.on('interactionCreate', async interaction => {
       // Set the model preference for this channel
       channelModelPreferences.set(targetChannel.id, model);
       
+      // If Groq is selected and a specific Groq model is provided, save it
+      if (model === 'groq') {
+        const groqModel = interaction.options.getString('groq_model');
+        if (groqModel) {
+          channelGroqModelPreferences.set(targetChannel.id, groqModel);
+          await interaction.reply(`Alright, I will be using Groq with model ${groqModel} in ${targetChannel}!`);
+          return;
+        } else {
+          // If no specific Groq model is selected, use default
+          channelGroqModelPreferences.set(targetChannel.id, defaultGroqModel);
+        }
+      }
+      
       // Reply with confirmation
       const modelNames = {
         'deepseek': 'DeepSeek',
@@ -604,7 +750,7 @@ client.on('interactionCreate', async interaction => {
         'groq': 'Groq (Llama-3.1)'
       };
       
-      await interaction.reply(`Alright, I will be using ${modelNames[model]} model in${targetChannel} !`);  
+      await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
     }
   } else if (interaction.commandName === 'help') {
     const helpEmbed = {
@@ -618,7 +764,7 @@ client.on('interactionCreate', async interaction => {
         },
         {
           name: '💬 聊天方式',
-          value: '在已啟動的頻道直接打字跟我聊天就可以了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！'
+          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！'
         },
         {
           name: '🎯 進階用法',
@@ -753,11 +899,14 @@ async function callTogetherAPI(messages) {
   throw lastError || new Error('All Together API keys failed');
 }
 
-async function callGroqAPI(messages) {
+async function callGroqAPI(messages, channelId) {
   // Try all available Groq keys until one works
   let lastError = null;
   const initialKeyIndex = currentGroqKeyIndex;
   let keysTriedCount = 0;
+  
+  // Get the preferred Groq model for this channel or use default
+  const preferredGroqModel = channelGroqModelPreferences.get(channelId) || defaultGroqModel;
   
   // Import Groq SDK directly
   const Groq = (await import('groq-sdk')).default;
@@ -770,10 +919,10 @@ async function callGroqAPI(messages) {
         dangerouslyAllowBrowser: true // Add this option to bypass safety check
       });
       
-      // Call Groq API
+      // Call Groq API with the preferred model
       const completion = await groq.chat.completions.create({
         messages: messages,
-        model: 'llama-3.1-8b-instant',
+        model: preferredGroqModel,
         max_tokens: 500 // Reduced from 1000 to make responses shorter
       });
       
@@ -786,6 +935,9 @@ async function callGroqAPI(messages) {
         console.log(`Groq API key ${currentGroqKeyIndex + 1}/${GROQ_API_KEYS.length} returned empty response`);
         continue;
       }
+      
+      // Log which Groq model was used
+      console.log(`Used Groq model: ${preferredGroqModel}`);
       
       // Success! Return the response
       return completion.choices[0].message.content;
@@ -1007,6 +1159,17 @@ client.on('messageCreate', async (message) => {
   const channelConfig = activeChannels.get(message.channelId);
   if (!channelConfig) return;
   
+  // Dev code to reset chat state
+  const devCode = "jqwHJQEWIUq拉hwWwqe欸";
+  if (message.content === devCode || message.content === `||${devCode}||`) {
+    console.log(`Dev code detected in channel ${message.channelId}. Resetting chat state.`);
+    await message.channel.send("聊天狀態已重置。Chat state has been reset.");
+    // Reset the channel's message history but keep the channel active
+    // This will make the bot respond as if it's a fresh conversation
+    // while still being able to read recent chat history
+    return;
+  }
+  
   // Show typing indicator immediately
   await message.channel.sendTyping();
   
@@ -1084,8 +1247,9 @@ client.on('messageCreate', async (message) => {
       case 'groq':
         if (GROQ_API_KEYS.length > 0) {
           try {
-            response = await callGroqAPI(formattedMessages);
-            modelUsed = 'Groq';
+            response = await callGroqAPI(formattedMessages, message.channelId);
+            const groqModel = channelGroqModelPreferences.get(message.channelId) || defaultGroqModel;
+            modelUsed = `Groq (${groqModel})`;
           } catch (error) {
             console.log('Groq API error:', error.message);
             // Will fall back to other models
@@ -1113,8 +1277,9 @@ client.on('messageCreate', async (message) => {
       // Try Groq API if not already tried and keys are available
       if (!response && preferredModel !== 'groq' && GROQ_API_KEYS.length > 0) {
         try {
-          response = await callGroqAPI(formattedMessages);
-          modelUsed = 'Groq';
+          response = await callGroqAPI(formattedMessages, message.channelId);
+          const groqModel = channelGroqModelPreferences.get(message.channelId) || defaultGroqModel;
+          modelUsed = `Groq (${groqModel})`;
         } catch (error) {
           console.log('Groq API fallback error:', error.message);
         }
