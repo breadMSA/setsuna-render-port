@@ -56,7 +56,7 @@ let currentTogetherKeyIndex = 0;
 let currentGroqKeyIndex = 0;
 
 // Default model to use
-let defaultModel = 'gemma'; // Options: 'deepseek', 'gemini', 'chatgpt', 'together', 'groq', 'gemma'
+let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'together', 'groq'
 
 // Channel model preferences
 const channelModelPreferences = new Map();
@@ -421,49 +421,65 @@ const commands = [
     .setDescription('Control Setsuna AI assistant')
     .addSubcommand(subcommand =>
       subcommand
-        .setName('status')
-        .setDescription('Activate or deactivate Setsuna in a channel')
-        .addStringOption(option =>
-          option
-            .setName('action')
-            .setDescription('Choose to activate or deactivate')
-            .setRequired(true)
-            .addChoices(
-              { name: 'Activate', value: 'activate' },
-              { name: 'Deactivate', value: 'deactivate' }
-            )
-        )
+        .setName('activate')
+        .setDescription('Activate Setsuna in a channel')
         .addChannelOption(option =>
           option
             .setName('channel')
-            .setDescription('The channel to activate/deactivate Setsuna in (defaults to current channel)')
+            .setDescription('The channel to activate Setsuna in (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
         .addStringOption(option =>
           option
             .setName('model')
-            .setDescription('The AI model to use (only applies when activating)')
+            .setDescription('The AI model to use (optional)')
             .setRequired(false)
             .addChoices(
-                  { name: 'Gemma (Default)', value: 'gemma2-9b-it' },
+                  { name: 'Groq', value: 'groq' },
                   { name: 'Gemini (Fast)', value: 'gemini' },
                   { name: 'ChatGPT', value: 'chatgpt' },
                   { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
-                  { name: 'DeepSeek (Slow)', value: 'deepseek' },
-                  { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
-                  { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
-                  { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
-                  { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
-                  { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-                  { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
-                  { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
-                  { name: 'allam-2-7b', value: 'allam-2-7b' },
-                  { name: 'compound-beta', value: 'compound-beta' },
-                  { name: 'compound-beta-mini', value: 'compound-beta-mini' },
-                  { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
-                  { name: 'llama-3.1-8b', value: 'llama-3.1-8b' }
+                  { name: 'DeepSeek (Slow)', value: 'deepseek' }
                 )
+        )
+        .addStringOption(option =>
+          option
+            .setName('groq_model')
+            .setDescription('Select a specific Groq model (only applies when Groq is selected)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
+              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+              { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
+              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
+              { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+              { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+              { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
+              { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'allam-2-7b', value: 'allam-2-7b' },
+              { name: 'compound-beta', value: 'compound-beta' },
+              { name: 'compound-beta-mini', value: 'compound-beta-mini' },
+              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
+              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
+              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
+              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' },
+              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+            )
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('deactivate')
+        .setDescription('Deactivate Setsuna in a channel')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to deactivate Setsuna in (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
         )
     )
     .addSubcommand(subcommand =>
@@ -476,12 +492,22 @@ const commands = [
             .setDescription('The AI model to use')
             .setRequired(true)
             .addChoices(
-              { name: 'Gemma (Default)', value: 'gemma2-9b-it' },
+              { name: 'Groq', value: 'groq' },
               { name: 'Gemini (Fast)', value: 'gemini' },
               { name: 'ChatGPT', value: 'chatgpt' },
               { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
-              { name: 'DeepSeek (Slow)', value: 'deepseek' },
-              { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
+              { name: 'DeepSeek (Slow)', value: 'deepseek' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('groq_model')
+            .setDescription('Select a specific Groq model (only applies when Groq is selected)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
+              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
               { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
@@ -491,8 +517,11 @@ const commands = [
               { name: 'allam-2-7b', value: 'allam-2-7b' },
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
+              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
+              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
+              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
-              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' }
+              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' }
             )
         )
         .addChannelOption(option =>
@@ -509,11 +538,11 @@ const commands = [
     .setDescription('Learn how to set up and use Setsuna'),
   new SlashCommandBuilder()
     .setName('reset_chat')
-    .setDescription('Completely reset the chat state of a channel, including personality and history.')
+    .setDescription('重置頻道的聊天狀態')
     .addChannelOption(option =>
       option
         .setName('channel')
-        .setDescription('The channel to reset (defaults to current channel)')
+        .setDescription('要重置的頻道 (預設為當前頻道)')
         .addChannelTypes(ChannelType.GuildText)
         .setRequired(false)
     )
@@ -631,98 +660,18 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'setsuna') {
     // Check if user has admin permissions
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      await interaction.reply({ content: 'You don\'t have permission to use this command! Nice try though (｡•̀ᴗ-)✧', flags: 64 });
+      await interaction.reply({ content: '欸欸 你沒權限啦！想偷用管理員指令？真可愛呢 (｡•̀ᴗ-)✧', ephemeral: true });
       return;
     }
     
     const subcommand = interaction.options.getSubcommand();
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
     
-    if (subcommand === 'status') {
-      const action = interaction.options.getString('action');
+    if (subcommand === 'activate') {
+      // Get optional model parameter
+      const model = interaction.options.getString('model') || defaultModel;
       
-      if (action === 'activate') {
-        const model = interaction.options.getString('model') || defaultModel;
-        let groqModel = interaction.options.getString('groq_model');
-
-        // Check if the selected model has API keys
-        let hasKeys = false;
-        switch (model) {
-          case 'deepseek':
-            hasKeys = DEEPSEEK_API_KEYS.length > 0;
-            break;
-          case 'gemini':
-            hasKeys = GEMINI_API_KEYS.length > 0;
-            break;
-          case 'chatgpt':
-            hasKeys = CHATGPT_API_KEYS.length > 0;
-            break;
-          case 'groq':
-            hasKeys = GROQ_API_KEYS.length > 0;
-            if (!groqModel) groqModel = defaultGroqModel; // Default Groq model if not specified
-            break;
-          case 'together':
-            hasKeys = TOGETHER_API_KEYS.length > 0;
-            break;
-        }
-        
-        if (!hasKeys) {
-          await interaction.reply({
-            content: `Oops! ${model.toUpperCase()} API key is not set up. Please ask the admin about the ${model.toUpperCase()}_API_KEY.`,
-            flags: 64
-          });
-          return;
-        }
-
-        if (model !== 'groq' && groqModel) {
-          await interaction.reply({ content: 'You can only select a specific Groq model if you choose Groq as the main model.', flags: 64 });
-          return;
-        }
-        
-        activeChannels.set(targetChannel.id, {
-          messageHistory: [], // Reset history on activation
-          userOverrides: {} // Reset user overrides
-        });
-        
-        channelModelPreferences.set(targetChannel.id, model);
-        
-        if (model === 'groq') {
-          channelGroqModelPreferences.set(targetChannel.id, groqModel);
-        } else {
-          channelGroqModelPreferences.delete(targetChannel.id);
-        }
-        
-        saveActiveChannels();
-        
-        const modelNames = {
-          'deepseek': 'DeepSeek',
-          'gemini': 'Gemini',
-          'chatgpt': 'ChatGPT',
-          'together': 'Together AI',
-          'groq': `Groq (${(availableGroqModels.find(m => m.value === groqModel) || {name: defaultGroqModel}).name})`
-        };
-        
-        await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel} using ${modelNames[model]} model~`);
-      } else if (action === 'deactivate') {
-        activeChannels.delete(targetChannel.id);
-        channelModelPreferences.delete(targetChannel.id);
-        channelGroqModelPreferences.delete(targetChannel.id);
-        saveActiveChannels();
-        await interaction.reply(`Peace out! Catch you later in another channel maybe?`);
-      }
-    } else if (subcommand === 'model') {
-      const model = interaction.options.getString('model');
-      let groqModel = interaction.options.getString('groq_model');
-      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-      
-      if (!activeChannels.has(targetChannel.id)) {
-        await interaction.reply({
-          content: `I haven't been activated in ${targetChannel}! Use \`/setsuna status\` with 'Activate' option to activate me first.`,
-          flags: 64
-        });
-        return;
-      }
-      
+      // Check if the selected model has API keys
       let hasKeys = false;
       switch (model) {
         case 'deepseek':
@@ -736,42 +685,110 @@ client.on('interactionCreate', async interaction => {
           break;
         case 'groq':
           hasKeys = GROQ_API_KEYS.length > 0;
-          if (!groqModel) groqModel = defaultGroqModel; // Default Groq model if not specified
           break;
-        case 'together':
+      case 'together':
           hasKeys = TOGETHER_API_KEYS.length > 0;
           break;
       }
       
       if (!hasKeys) {
         await interaction.reply({
-          content: `Oops! ${model.toUpperCase()} API key is not set up. Please ask the admin about the ${model.toUpperCase()}_API_KEY.`,
-          flags: 64
+          content: `啊...${model.toUpperCase()} API key 沒設定好啦！去找管理員問問 ${model.toUpperCase()}_API_KEY 的事情吧。`,
+          ephemeral: true
         });
         return;
       }
-
-      if (model !== 'groq' && groqModel) {
-        await interaction.reply({ content: 'You can only select a specific Groq model if you choose Groq as the main model.', flags: 64 });
-        return;
-      }
       
+      // Set the channel as active
+      activeChannels.set(targetChannel.id, {
+        messageHistory: []
+      });
+      
+      // Set the model preference for this channel
       channelModelPreferences.set(targetChannel.id, model);
       
-      if (model === 'groq') {
-        channelGroqModelPreferences.set(targetChannel.id, groqModel);
-      } else {
-        channelGroqModelPreferences.delete(targetChannel.id);
-      }
-      
+      // Save to file
       saveActiveChannels();
       
+      // Get model name for display
       const modelNames = {
         'deepseek': 'DeepSeek',
         'gemini': 'Gemini',
         'chatgpt': 'ChatGPT',
         'together': 'Together AI',
-        'groq': `Groq (${(availableGroqModels.find(m => m.value === groqModel) || {name: defaultGroqModel}).name})`
+        'groq': 'Groq (Llama-3.1)'
+      };
+      
+      await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel} using ${modelNames[model]} model~`);
+    } else if (subcommand === 'deactivate') {
+      activeChannels.delete(targetChannel.id);
+      channelModelPreferences.delete(targetChannel.id);
+      saveActiveChannels();
+      await interaction.reply(`Peace out! Catch you later in another channel maybe?`);
+    } else if (subcommand === 'model') {
+      const model = interaction.options.getString('model');
+      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+      
+      // Check if the channel is active
+      if (!activeChannels.has(targetChannel.id)) {
+        await interaction.reply({
+          content: `I haven't been activated in ${targetChannel} ! Use \`/setsuna activate\` to activate me first.`,
+          ephemeral: true
+        });
+        return;
+      }
+      
+      // Check if the selected model has API keys
+      let hasKeys = false;
+      switch (model) {
+        case 'deepseek':
+          hasKeys = DEEPSEEK_API_KEYS.length > 0;
+          break;
+        case 'gemini':
+          hasKeys = GEMINI_API_KEYS.length > 0;
+          break;
+        case 'chatgpt':
+          hasKeys = CHATGPT_API_KEYS.length > 0;
+          break;
+        case 'groq':
+          hasKeys = GROQ_API_KEYS.length > 0;
+          break;
+      case 'together':
+          hasKeys = TOGETHER_API_KEYS.length > 0;
+          break;
+      }
+      
+      if (!hasKeys) {
+        await interaction.reply({
+          content: `啊...${model.toUpperCase()} API key 沒設定好啦！去找管理員問問 ${model.toUpperCase()}_API_KEY 的事情吧。`,
+          ephemeral: true
+        });
+        return;
+      }
+      
+      // Set the model preference for this channel
+      channelModelPreferences.set(targetChannel.id, model);
+      
+      // If Groq is selected and a specific Groq model is provided, save it
+      if (model === 'groq') {
+        const groqModel = interaction.options.getString('groq_model');
+        if (groqModel) {
+          channelGroqModelPreferences.set(targetChannel.id, groqModel);
+          await interaction.reply(`Alright, I will be using Groq with model ${groqModel} in ${targetChannel}!`);
+          return;
+        } else {
+          // If no specific Groq model is selected, use default
+          channelGroqModelPreferences.set(targetChannel.id, defaultGroqModel);
+        }
+      }
+      
+      // Reply with confirmation
+      const modelNames = {
+        'deepseek': 'DeepSeek',
+        'gemini': 'Gemini',
+        'chatgpt': 'ChatGPT',
+        'together': 'Together AI',
+        'groq': 'Groq (Llama-3.1)'
       };
       
       await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
@@ -779,28 +796,23 @@ client.on('interactionCreate', async interaction => {
   } else if (interaction.commandName === 'reset_chat') {
     // 檢查權限
     if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
-      await interaction.reply({ content: 'You do not have the permission to do this!', flags: 64 });
+      await interaction.reply({ content: 'You do not have the permission to do this!', ephemeral: true });
       return;
     }
     
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
     
+    // 檢查頻道是否已啟動
     if (!activeChannels.has(targetChannel.id)) {
-      await interaction.reply({ content: `I haven't been activated in ${targetChannel} !`, flags: 64 });
+      await interaction.reply({ content: `I haven't been activated in ${targetChannel} !`, ephemeral: true });
       return;
     }
     
-    // 完全重置聊天狀態，包括歷史記錄和用戶自定義的個性
-    activeChannels.set(targetChannel.id, { 
-        messageHistory: [], 
-        userOverrides: {} // Clear any user-defined personality/instructions
-    });
-    // Optionally, reset model preferences to default if that's desired for a full reset
-    // channelModelPreferences.set(targetChannel.id, defaultModel);
-    // channelGroqModelPreferences.set(targetChannel.id, defaultGroqModel);
+    // 完全重置聊天狀態
+    activeChannels.set(targetChannel.id, { messageHistory: [] });
     saveActiveChannels();
     
-    await interaction.reply(`${targetChannel}'s chat state has been completely reset! It's like a brand new Setsuna in here.`);
+    await interaction.reply(`${targetChannel} 的聊天狀態已完全重置！`);
   } else if (interaction.commandName === 'help') {
     const helpEmbed = {
       color: 0xFF69B4,
@@ -813,7 +825,7 @@ client.on('interactionCreate', async interaction => {
         },
         {
           name: '💬 聊天方式',
-          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並針對回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我會試著幫你找找看。'
+          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並針對回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我也會試著幫你找找看。'
         },
         {
           name: '🎯 進階用法',
@@ -878,6 +890,7 @@ Personality Traits:
 - Interaction: casual with everyone, slightly gentler with new users
 
 RESPONSE LENGTH AND STYLE REQUIREMENTS (EXTREMELY IMPORTANT):
+- DO NOT INCLUDE YOUR MODEL THINKING PROCESS IN THE RESPONSE
 - Keep responses VERY SHORT, typically 1-3 sentences only
 - Maximum response length should be around 50-100 words
 - Be direct and get to the point quickly
@@ -955,12 +968,6 @@ async function callTogetherAPI(messages) {
 }
 
 async function callGroqAPI(messages, channelId) {
-  // Use Groq API request format
-  const response = await callGroqAPI(messageContent, targetChannel.id);
-  // Handle response
-}
-
-async function callGroqAPI(messages, channelId) {
   // Try all available Groq keys until one works
   let lastError = null;
   const initialKeyIndex = currentGroqKeyIndex;
@@ -983,7 +990,7 @@ async function callGroqAPI(messages, channelId) {
       // Call Groq API with the preferred model
       const completion = await groq.chat.completions.create({
         messages: messages,
-        model: preferredGroqModel, // This now uses the dynamically selected Groq model
+        model: preferredGroqModel,
         max_tokens: 500 // Reduced from 1000 to make responses shorter
       });
       
@@ -1240,8 +1247,25 @@ client.on('messageCreate', async (message) => {
       });
       if (response.data.items && response.data.items.length > 0) {
         const video = response.data.items[0];
-        youtubeInfo = `[YouTube Video Info]\nTitle: ${video.snippet.title}\nChannel: ${video.snippet.channelTitle}\nURL: https://www.youtube.com/watch?v=${videoId}\nDescription: ${video.snippet.description.substring(0, 200) + (video.snippet.description.length > 200 ? '...' : '')}\nView Count: ${video.statistics.viewCount ? parseInt(video.statistics.viewCount).toLocaleString() : 'N/A'}\nLike Count: ${video.statistics.likeCount ? parseInt(video.statistics.likeCount).toLocaleString() : 'N/A'}\nPublished At: ${new Date(video.snippet.publishedAt).toISOString()}\n`;
-        console.log('Extracted YouTube video info from URL.');
+        const embed = {
+          color: 0xFF0000,
+          title: video.snippet.title,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          author: {
+            name: video.snippet.channelTitle,
+            url: `https://www.youtube.com/channel/${video.snippet.channelId}`
+          },
+          description: video.snippet.description.substring(0, 200) + (video.snippet.description.length > 200 ? '...' : ''),
+          thumbnail: { url: video.snippet.thumbnails.medium.url },
+          fields: [
+            { name: '觀看次數', value: video.statistics.viewCount ? parseInt(video.statistics.viewCount).toLocaleString() : 'N/A', inline: true },
+            { name: '喜歡人數', value: video.statistics.likeCount ? parseInt(video.statistics.likeCount).toLocaleString() : 'N/A', inline: true },
+          ],
+          timestamp: new Date(video.snippet.publishedAt),
+          footer: { text: 'YouTube' }
+        };
+        await message.channel.send({ embeds: [embed] });
+        return; // Don't process further if it's a YouTube URL
       }
     } catch (error) {
       console.error('Error fetching YouTube video by URL:', error);
@@ -1253,7 +1277,7 @@ client.on('messageCreate', async (message) => {
   const youtubeSearchKeywords = ['youtube', '影片', 'yt', '找影片', '搜影片'];
   const containsYoutubeKeyword = youtubeSearchKeywords.some(keyword => message.content.toLowerCase().includes(keyword));
 
-  if (!youtubeUrlMatch && containsYoutubeKeyword && process.env.YOUTUBE_API_KEY) { // Only search if no direct URL was found
+  if (containsYoutubeKeyword && process.env.YOUTUBE_API_KEY) {
     let searchQuery = message.content;
     // Attempt to extract a more specific query if possible
     // This is a simple heuristic, can be improved
@@ -1279,8 +1303,14 @@ client.on('messageCreate', async (message) => {
             url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
             channelTitle: item.snippet.channelTitle
           }));
-          youtubeInfo = `[YouTube Search Results for ${searchQuery}]\n` + videos.map((video, index) => `${index + 1}. Title: ${video.title}\nChannel: ${video.channelTitle}\nURL: ${video.url}`).join('\n') + '\n';
-          console.log('Extracted YouTube search results.');
+          const embed = {
+            color: 0xFF0000,
+            title: `我找到了這些 YouTube 影片給你參考看看：${searchQuery}`,
+            description: videos.map((video, index) => `${index + 1}. [${video.title}](${video.url}) - ${video.channelTitle}`).join('\n'),
+            thumbnail: { url: 'https://www.youtube.com/s/desktop/28b0985e/img/favicon_144x144.png' }
+          };
+          await message.channel.send({ embeds: [embed] });
+          return; // Don't process with AI if YouTube results are found
         }
       } catch (error) {
         console.error('Error searching YouTube via natural language:', error);
@@ -1444,12 +1474,12 @@ client.on('messageCreate', async (message) => {
       if (!response && preferredModel !== 'chatgpt' && CHATGPT_API_KEYS.length > 0) {
         try {
           response = await callChatGPTAPI(formattedMessages);
-            modelUsed = 'ChatGPT';
-          } catch (error) {
-            console.log('ChatGPT API fallback error:', error.message);
-          }
+          modelUsed = 'ChatGPT';
+        } catch (error) {
+          console.log('ChatGPT API fallback error:', error.message);
         }
-        
+      }
+      
       // Try Together API if not already tried and keys are available
       if (!response && preferredModel !== 'together' && TOGETHER_API_KEYS.length > 0) {
         try {
