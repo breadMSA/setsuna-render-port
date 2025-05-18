@@ -449,7 +449,7 @@ const commands = [
         .setDescription('Activate Setsuna in a channel')
         .addChannelOption(option =>
           option
-            .setName('channel')
+            .setName('target_channel')
             .setDescription('The channel to activate Setsuna in (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
@@ -473,13 +473,14 @@ const commands = [
             .setDescription('Select a specific Groq model (only applies when Groq is selected)')
             .setRequired(false)
             .addChoices(
-              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'gemma2-9b-it (Default)', value: 'gemma2-9b-it' },
+              { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
-              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
               { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
               { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
               { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'gemma2-27b-it', value: 'gemma2-27b-it' },
               { name: 'allam-2-7b', value: 'allam-2-7b' },
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
@@ -488,7 +489,7 @@ const commands = [
         )
         .addChannelOption(option =>
           option
-            .setName('channel')
+            .setName('target_channel')
             .setDescription('The channel to set model for (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
@@ -500,7 +501,7 @@ const commands = [
         .setDescription('Deactivate Setsuna in a channel')
         .addChannelOption(option =>
           option
-            .setName('channel')
+            .setName('target_channel')
             .setDescription('The channel to deactivate Setsuna in (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
@@ -529,13 +530,14 @@ const commands = [
             .setDescription('Select a specific Groq model (only applies when Groq is selected)')
             .setRequired(false)
             .addChoices(
-              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
+              { name: 'gemma2-9b-it (Default)', value: 'gemma2-9b-it' },
+              { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
-              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
               { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
               { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
               { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'gemma2-27b-it', value: 'gemma2-27b-it' },
               { name: 'allam-2-7b', value: 'allam-2-7b' },
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
