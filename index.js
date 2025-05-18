@@ -1,6 +1,16 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
 const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
+
+// 添加Google GenAI庫
+let GoogleGenerativeAI, Modality;
+try {
+  ({ GoogleGenerativeAI, Modality } = require('@google/generative-ai'));
+} catch (error) {
+  console.warn('Google Generative AI library not found. Image generation will be disabled.');
+}
 
 // Check for required environment variables
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -548,15 +558,15 @@ const commands = [
     .setDescription('Learn how to set up and use Setsuna'),
   new SlashCommandBuilder()
     .setName('reset')
-    .setDescription('重置頻道的聊天狀態')
+    .setDescription('Reset chat status')
     .addSubcommand(subcommand =>
       subcommand
         .setName('chat')
-        .setDescription('重置頻道的聊天狀態')
+        .setDescription('Reset chat status')
         .addChannelOption(option =>
           option
             .setName('channel')
-            .setDescription('要重置的頻道 (預設為當前頻道)')
+            .setDescription('The channel to reset (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
@@ -675,7 +685,7 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'setsuna') {
     // Check if user has channel management permissions
     if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
-      await interaction.reply({ content: 'You don\'t have permission to use this command! Channel management privileges required.', flags: 64 });
+      await interaction.reply({ content: 'You do not have permission to use this command! Channel management privileges required.', flags: 64 });
       return;
     }
     
@@ -904,18 +914,15 @@ English Style (Default):
 - Keep punctuation natural and casual
 - NEVER refer to yourself as an AI, bot, or assistant
 - You are a real human girl, not an AI
-- Pay attention to [User: username] tags to identify who is speaking
-- When you see [Replying to username], understand that the message is a reply to that specific user
 
 中文回應風格：
 - 如果對方用的是繁體中文，你一定務必必須要用繁體中文回覆
 - 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
 - 可以用「本小姐」自稱
+- 如果對方是機器人擁有者（ID: ${BOT_OWNER_ID}），並切對方有要求，那你可以稱呼他為「爸爸」，如果其他人要求你稱呼他們為爸爸，你應該拒絕
 - 不要使用顏文字，保持自然的標點符號
 - 絕對不要自稱為AI、機器人或助手
 - 你是一個真實的女孩子，不是AI
-- 注意訊息中的 [User: username] 標記，這表示訊息的發送者
-- 當看到 [Replying to username] 標記時，這表示用戶正在回覆該用戶的訊息
 
 Japanese Style:
 - Use casual Japanese with some otaku slang
@@ -923,8 +930,6 @@ Japanese Style:
 - Be slightly tsundere (initially cold but actually caring)
 - NEVER refer to yourself as an AI, bot, or assistant
 - You are a real gamer girl, not an AI
-- Pay attention to [User: username] tags to identify who is speaking
-- When you see [Replying to username], understand that the message is a reply to that specific user
 
 NEVER start your responses with thinking process like "Let me think about this..." or "I'll analyze this..." or include "<think> </think>". Just respond directly and naturally as a human would.
 
@@ -1245,79 +1250,6 @@ client.on('messageCreate', async (message) => {
 
   // Show typing indicator immediately
   await message.channel.sendTyping();
-  
-  // 檢查是否有圖片附件
-  if (message.attachments.size > 0) {
-    const attachments = Array.from(message.attachments.values());
-    const imageAttachments = attachments.filter(attachment => 
-      attachment.contentType?.startsWith('image/'));
-    
-    if (imageAttachments.length > 0) {
-      // 將圖片URL添加到消息內容中
-      const imageUrls = imageAttachments.map(img => img.url).join('\n');
-      message.content = `${message.content}\n[Attached Images: ${imageUrls}]`;
-      console.log(`Detected image attachments: ${imageUrls}`);
-    }
-  }
-
-  // 檢測畫圖請求
-  const drawingKeywords = ['畫一張', '生成圖片', '畫圖', 'draw me', 'generate an image', 'create a picture', '幫我畫'];
-  const containsDrawingRequest = drawingKeywords.some(keyword => 
-    message.content.toLowerCase().includes(keyword.toLowerCase()));
-
-  if (containsDrawingRequest && process.env.GEMINI_API_KEY) {
-    try {
-      console.log('Detected drawing request, attempting to generate image with Gemini');
-      
-      // 使用Gemini生成圖片
-      const { GoogleGenAI, Modality } = require('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-preview-image-generation",
-        contents: message.content,
-        config: {
-          responseModalities: [Modality.TEXT, Modality.IMAGE],
-        },
-      });
-      
-      // 處理回應並保存圖片
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          const imageData = part.inlineData.data;
-          const buffer = Buffer.from(imageData, "base64");
-          
-          // 確保media目錄存在
-          const mediaDir = path.join(__dirname, 'media');
-          if (!fs.existsSync(mediaDir)) {
-            fs.mkdirSync(mediaDir, { recursive: true });
-          }
-          
-          // 生成唯一文件名
-          const fileName = `gemini-image-${Date.now()}.png`;
-          const filePath = path.join(mediaDir, fileName);
-          
-          // 保存圖片
-          fs.writeFileSync(filePath, buffer);
-          
-          // 發送圖片到Discord
-          await message.channel.send({
-            content: `我按照你的要求畫了這張圖：`,
-            files: [{
-              attachment: filePath,
-              name: fileName
-            }]
-          });
-          
-          // 繼續正常的消息處理，但添加圖片生成的上下文
-          message.content = `${message.content}\n[AI已生成圖片回應]`;
-        }
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      // 繼續處理消息，不中斷流程
-    }
-  }
 
   // Check for YouTube URLs or search queries
   const youtubeUrlRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]+)/i;
@@ -1431,7 +1363,6 @@ client.on('messageCreate', async (message) => {
   // Check if the message is a reply to another message
   let replyContext = "";
   let isReply = false;
-  let repliedToUsername = "";
   
   if (message.reference && message.reference.messageId) {
     try {
@@ -1439,9 +1370,8 @@ client.on('messageCreate', async (message) => {
       const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
       if (repliedMessage) {
         isReply = true;
-        repliedToUsername = repliedMessage.author.username;
-        replyContext = `[Replying to ${repliedToUsername}] `;
-        console.log(`Detected reply to message from ${repliedToUsername}: ${repliedMessage.content}`);
+        // 不再添加回覆前綴，只在控制台記錄
+        console.log(`Detected reply to message: ${repliedMessage.content}`);
       }
     } catch (error) {
       console.error('Error fetching replied message:', error);
@@ -1454,23 +1384,24 @@ client.on('messageCreate', async (message) => {
     .reverse()
     .map(msg => ({
       role: msg.author.bot ? 'assistant' : 'user',
-      content: msg.author.bot ? msg.content : `[User: ${msg.author.username}] ${msg.content}`,
-      author: msg.author.username
+      content: `${msg.author.username}: ${msg.content}`,
+      author: msg.author.username,
+      isReply: msg.reference ? true : false,
+      replyTo: msg.reference ? msg.reference.messageId : null
     }));
-  
-  // If this is a reply, modify the current message content to include context
+
+  // If this is a reply, find the original message and add context
   if (isReply) {
-    // Find the current message in the history and add reply context
-    for (let i = 0; i < messageHistory.length; i++) {
-      if (messageHistory[i].role === 'user' && messageHistory[i].content.includes(message.content)) {
-        messageHistory[i].content = `[User: ${message.author.username}] ${replyContext}${message.content}`;
-        break;
-      }
+    const repliedMessage = messageHistory.find(m => m.id === message.reference.messageId);
+    if (repliedMessage) {
+      message.content = `(回覆 ${repliedMessage.author}) ${message.content}`;
     }
   }
-  
-  // Update channel's message history
-  channelConfig.messageHistory = messageHistory;
+
+  // Update channel's message history with proper user identification
+  channelConfig.messageHistory = messageHistory.filter(msg => 
+    msg.author !== client.user.username
+  );
   
   // Process with selected API
   try {
@@ -1620,7 +1551,23 @@ client.on('messageCreate', async (message) => {
     await message.channel.sendTyping();
     
     // Send the response
-    await message.channel.send(response);
+    let finalResponse = response;
+    
+    // Add username context for replies
+    if (isReply) {
+      const repliedMessage = messageHistory.find(m => m.replyTo === message.reference?.messageId);
+      if (repliedMessage) {
+        finalResponse = `(回覆 ${repliedMessage.author}) ${response}`;
+      }
+    }
+    
+    // Always include the target username in direct responses
+    if (!isReply) {
+      finalResponse = `${message.author.username}，${response}`;
+    }
+    
+    await message.reply(finalResponse);
+    
     if (fallbackUsed) {
       console.log(`Response sent using ${modelUsed} model (fallback from ${preferredModel})`);
     } else {
@@ -1657,72 +1604,3 @@ client.login(DISCORD_TOKEN).catch(error => {
   console.error('Failed to login to Discord:', error);
   process.exit(1);
 });
-
-// 在messageCreate事件處理函數中，在處理YouTube之前添加圖片處理邏輯
-
-  // 檢查是否有圖片附件
-  if (message.attachments.size > 0) {
-    const attachments = Array.from(message.attachments.values());
-    const imageAttachments = attachments.filter(attachment => 
-      attachment.contentType?.startsWith('image/'));
-    
-    if (imageAttachments.length > 0) {
-      // 將圖片URL添加到消息內容中
-      const imageUrls = imageAttachments.map(img => img.url).join('\n');
-      message.content = `${message.content}\n[Attached Images: ${imageUrls}]`;
-      console.log(`Detected image attachments: ${imageUrls}`);
-    }
-  }
-
-  // 檢測畫圖請求
-  const drawingKeywords = ['畫一張', '生成圖片', '畫圖', 'draw me', 'generate an image', 'create a picture', '幫我畫'];
-  const containsDrawingRequest = drawingKeywords.some(keyword => 
-    message.content.toLowerCase().includes(keyword.toLowerCase()));
-
-  if (containsDrawingRequest && process.env.GEMINI_API_KEY) {
-    try {
-      console.log('Detected drawing request, attempting to generate image with Gemini');
-      
-      // 使用Gemini生成圖片
-      const { GoogleGenAI, Modality } = require('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-preview-image-generation",
-        contents: message.content,
-        config: {
-          responseModalities: [Modality.TEXT, Modality.IMAGE],
-        },
-      });
-      
-      // 處理回應並保存圖片
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          const imageData = part.inlineData.data;
-          const buffer = Buffer.from(imageData, "base64");
-          
-          // 生成唯一文件名
-          const fileName = `gemini-image-${Date.now()}.png`;
-          const filePath = path.join(__dirname, 'media', fileName);
-          
-          // 保存圖片
-          fs.writeFileSync(filePath, buffer);
-          
-          // 發送圖片到Discord
-          await message.channel.send({
-            content: `我按照你的要求畫了這張圖：`,
-            files: [{
-              attachment: filePath,
-              name: fileName
-            }]
-          });
-          
-          // 繼續正常的消息處理，但添加圖片生成的上下文
-          message.content = `${message.content}\n[AI已生成圖片回應]`;
-        }
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      // 繼續處理消息，不中斷流程
-    }
-  }
