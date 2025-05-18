@@ -1270,7 +1270,7 @@ client.on('messageCreate', async (message) => {
       console.log('Detected drawing request, attempting to generate image with Gemini');
       
       // 使用Gemini生成圖片
-      const { GoogleGenAI, Modality } = await import('@google/genai');
+      const { GoogleGenAI, Modality } = require('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const response = await ai.models.generateContent({
@@ -1684,7 +1684,7 @@ client.login(DISCORD_TOKEN).catch(error => {
       console.log('Detected drawing request, attempting to generate image with Gemini');
       
       // 使用Gemini生成圖片
-      const { GoogleGenAI, Modality } = await import('@google/genai');
+      const { GoogleGenAI, Modality } = require('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const response = await ai.models.generateContent({
