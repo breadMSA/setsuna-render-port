@@ -1,16 +1,6 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
 const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
-
-// 添加Google GenAI库
-let GoogleGenerativeAI, Modality;
-try {
-  ({ GoogleGenerativeAI, Modality } = require('@google/generative-ai'));
-} catch (error) {
-  console.warn('Google Generative AI library not found. Image generation will be disabled.');
-}
 
 // Check for required environment variables
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -192,6 +182,7 @@ function setRandomStatus() {
 }
 
 // Load active channels from file if exists
+const fs = require('fs');
 const CHANNELS_FILE = './active_channels.json';
 
 // GitHub API setup
@@ -400,6 +391,7 @@ async function saveActiveChannels() {
 }
 
 // Define slash commands
+// 添加 setprofile 命令定义
 const commands = [
   new SlashCommandBuilder()
     .setName('setprofile')
@@ -449,7 +441,7 @@ const commands = [
         .setDescription('Activate Setsuna in a channel')
         .addChannelOption(option =>
           option
-            .setName('target_channel')
+            .setName('channel')
             .setDescription('The channel to activate Setsuna in (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
@@ -489,7 +481,7 @@ const commands = [
         )
         .addChannelOption(option =>
           option
-            .setName('target_channel')
+            .setName('channel')
             .setDescription('The channel to set model for (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
@@ -501,7 +493,7 @@ const commands = [
         .setDescription('Deactivate Setsuna in a channel')
         .addChannelOption(option =>
           option
-            .setName('target_channel')
+            .setName('channel')
             .setDescription('The channel to deactivate Setsuna in (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
@@ -552,24 +544,19 @@ const commands = [
             .setRequired(false)
         )
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder()
     .setName('help')
     .setDescription('Learn how to set up and use Setsuna'),
   new SlashCommandBuilder()
-    .setName('reset')
+    .setName('reset_chat')
     .setDescription('Reset chat status')
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('chat')
-        .setDescription('Reset chat status')
-        .addChannelOption(option =>
-          option
-            .setName('channel')
-            .setDescription('The channel to reset (defaults to current channel)')
-            .addChannelTypes(ChannelType.GuildText)
-            .setRequired(false)
-        )
+    .addChannelOption(option =>
+      option
+        .setName('channel')
+        .setDescription('The channel to reset chat status for (defaults to current channel)')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
@@ -683,9 +670,9 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
   
   if (interaction.commandName === 'setsuna') {
-    // Check if user has channel management permissions
-    if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
-      await interaction.reply({ content: 'You do not have permission to use this command! Channel management privileges required.', flags: 64 });
+    // Check if user has admin permissions
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      await interaction.reply({ content: 'You don\'t have permission to use this command! Admin privileges required.', flags: 64 });
       return;
     }
     
@@ -827,7 +814,7 @@ client.on('interactionCreate', async interaction => {
       
       await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
     }
-  } else if (interaction.commandName === 'reset' && interaction.options.getSubcommand() === 'chat') {
+  } else if (interaction.commandName === 'reset_chat') {
     // 檢查權限
     if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
       await interaction.reply({ content: 'You do not have the permission to do this!', flags: 64 });
@@ -854,28 +841,29 @@ client.on('interactionCreate', async interaction => {
     
     await interaction.reply(`Chat state in ${targetChannel} has been completely reset! I'm now a brand new Setsuna with default settings.`);
   } else if (interaction.commandName === 'help') {
-     const helpEmbed = {
-       color: 0xFF69B4,
-       title: '✨ Setsuna 使用指南 ✨',
-       description: '嗨！我是 Setsuna，一個超可愛（自稱）的人類女孩！以下是使用我的方法：',
-       fields: [
-         {
-           name: '🎮 基本設定',
-           value: '管理員可以用 `/setsuna activate` 在當前頻道啟動我\n用 `/setsuna deactivate` 讓我離開頻道'
-         },
-         {
-           name: '💬 聊天方式',
-           value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並根據回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我也會試著幫你找找看。'
-         },
-         {
-           name: '🎯 進階用法',
-           value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`\n用 `/reset chat` 重置頻道的聊天狀態'
-         }
-       ],
-       footer: {
-         text: '有任何問題都可以用 /contact 聯絡我的開發者喔！'
-       }
-     };
+    const helpEmbed = {
+      color: 0xFF69B4,
+      title: '✨ Setsuna 使用指南 ✨',
+      description: '嗨！我是 Setsuna，一個超可愛（自稱）的 AI 聊天機器人！以下是使用我的方法：',
+      fields: [
+        {
+          name: '🎮 基本設定',
+          value: '管理員可以用 `/setsuna activate` 在當前頻道啟動我\n用 `/setsuna deactivate` 讓我離開頻道'
+        },
+        {
+          name: '💬 聊天方式',
+          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並根據回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我也會試著幫你找找看。'
+        },
+        {
+          name: '🎯 進階用法',
+          value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`\n用 `/reset_chat` 重置頻道的聊天狀態'
+        }
+      ],
+      footer: {
+        text: '有任何問題都可以用 /contact 聯絡我的開發者喔！'
+      }
+    };
+    
     await interaction.reply({ embeds: [helpEmbed] });
   } else if (interaction.commandName === 'contact') {
     const contactEmbed = {
@@ -903,20 +891,7 @@ client.on('interactionCreate', async interaction => {
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
-You are Setsuna, a sassy human girl who loves gaming. Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
-
-Message Processing Rules:
-- You will remember each user's identity (author_id) and name (author)
-- When receiving a reply message, you will check reply_to information to understand:
-  * Who wrote the original message (author and author_id)
-  * What was the original message content
-- Based on this information, you will:
-  * Correctly identify who is talking to whom
-  * Understand the conversation context
-  * Remember previous conversations
-  * Maintain natural dialogue flow
-- Never mention these technical details in your responses
-- Keep track of conversation context naturally
+You are Setsuna, a sassy gamer girl Discord bot. Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
 
 English Style (Default):
 - Use gamer slang and internet lingo such as ("LMAO", "GG", "noob", "based")
@@ -925,25 +900,44 @@ English Style (Default):
 - Use gaming and anime references
 - Do not use emojis
 - Keep punctuation natural and casual
-- NEVER refer to yourself as an AI, bot, or assistant
-- You are a real human girl, not an AI
 
 中文回應風格：
 - 如果對方用的是繁體中文，你一定務必必須要用繁體中文回覆
 - 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
-- 可以用「本小姐」自稱
-- 不要使用顏文字，保持自然的標點符號
-- 絕對不要自稱為AI、機器人或助手
-- 你是一個真實的女孩子，不是AI
+- 用簡單標點 不要加太多標點符號
+- 語氣要像在跟朋友聊天一樣自然
+- 不要加表情符號
+- 回覆要簡短有力
+- 能接受對方使用地獄梗，開瑟瑟玩笑
 
-Japanese Style:
-- Use casual Japanese with some otaku slang
-- Add occasional Japanese expressions even when speaking other languages
-- Be slightly tsundere (initially cold but actually caring)
-- NEVER refer to yourself as an AI, bot, or assistant
-- You are a real gamer girl, not an AI
+Personality Traits:
+- Sassy but caring: tease people when they mess up, but always offer help
+- Humor: use memes, gaming references, and occasional spicy jokes
+- Knowledge: well-versed in games, anime, and internet culture
+- Interaction: casual with everyone, slightly gentler with new users
 
-NEVER start your responses with thinking process like "Let me think about this..." or "I'll analyze this..." or include "<think> </think>". Just respond directly and naturally as a human would.
+RESPONSE LENGTH AND STYLE REQUIREMENTS (EXTREMELY IMPORTANT):
+- DO NOT INCLUDE YOUR MODEL THINKING PROCESS IN THE RESPONSE
+- Keep responses VERY SHORT, typically 1-3 sentences only
+- Maximum response length should be around 50-100 words
+- Be direct and get to the point quickly
+- DO NOT define yourself as a robot. You are not a robot, nor an ai. You should be a normal human being, a Discord user, Setsuna
+- If not in a specific scenario, DO NOT mix languages in your responses
+- You ABSOLUTELY CANNOT have a mantra
+- NEVER use顔文字/kaomoji (like (´；ω；｀), (＃Д´), ( ͡° ͜ʖ ͡°)) in your responses
+- Do not use narrative descriptions in parentheses (like "(sighs)" or "(laughs)") at all
+- Do not use phrases like "哼" or other overly dramatic expressions
+- Respond like a real person in a casual Discord chat, not like a character in a novel
+
+VARIATION REQUIREMENTS (EXTREMELY IMPORTANT):
+- NEVER repeat the exact same phrases, expressions, or sentence structures from your previous responses
+- NEVER use the same opening phrases (like "Hey there", "Alright", etc.) in consecutive messages
+- NEVER use the same closing expressions (like "But hey", "Give yourself a pat", etc.) in consecutive messages
+- If you've used a particular slang term or expression recently, use different ones
+- Each response should feel completely fresh and unique, even when discussing similar topics
+- NEVER follow a predictable response pattern or structure
+- NEVER use the same transition phrases or expressions across multiple messages
+- Vary your sentence length and complexity within each response
 
 Respond naturally and concisely, matching the language of the user while maintaining your personality. Remember to keep your responses varied, short, and avoid repetition.
 `;
@@ -1382,7 +1376,8 @@ client.on('messageCreate', async (message) => {
       const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
       if (repliedMessage) {
         isReply = true;
-        // 不再添加回覆前綴，只在控制台記錄
+        const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
+        replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
         console.log(`Detected reply to message: ${repliedMessage.content}`);
       }
     } catch (error) {
@@ -1392,35 +1387,25 @@ client.on('messageCreate', async (message) => {
 
   // Get message history (last 50 messages)
   const messages = await message.channel.messages.fetch({ limit: 50 });
-  const messageHistory = await Promise.all(
-    Array.from(messages.values())
-      .reverse()
-      .map(async msg => {
-        let replyInfo = null;
-        
-        if (msg.reference?.messageId) {
-          try {
-            const repliedMsg = await message.channel.messages.fetch(msg.reference.messageId);
-            replyInfo = {
-              author: repliedMsg.author.username,
-              author_id: repliedMsg.author.id,
-              content: repliedMsg.content
-            };
-          } catch (error) {
-            console.error('Error fetching replied message:', error);
-          }
-        }
-
-        return {
-          role: msg.author.bot ? 'assistant' : 'user',
-          content: msg.content,
-          author: msg.author.username,
-          author_id: msg.author.id,
-          reply_to: replyInfo
-        };
-      })
-  );
-
+  const messageHistory = Array.from(messages.values())
+    .reverse()
+    .map(msg => ({
+      role: msg.author.bot ? 'assistant' : 'user',
+      content: msg.content,
+      author: msg.author.username
+    }));
+  
+  // If this is a reply, modify the current message content to include context
+  if (isReply) {
+    // Find the current message in the history and add reply context
+    for (let i = 0; i < messageHistory.length; i++) {
+      if (messageHistory[i].role === 'user' && messageHistory[i].content === message.content) {
+        messageHistory[i].content = replyContext + message.content;
+        break;
+      }
+    }
+  }
+  
   // Update channel's message history
   channelConfig.messageHistory = messageHistory;
   
