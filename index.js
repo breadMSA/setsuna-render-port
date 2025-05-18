@@ -4,7 +4,7 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 
-// 添加Google GenAI庫
+// 添加Google GenAI库
 let GoogleGenerativeAI, Modality;
 try {
   ({ GoogleGenerativeAI, Modality } = require('@google/generative-ai'));
@@ -192,6 +192,7 @@ function setRandomStatus() {
 }
 
 // Load active channels from file if exists
+const fs = require('fs');
 const CHANNELS_FILE = './active_channels.json';
 
 // GitHub API setup
@@ -400,7 +401,6 @@ async function saveActiveChannels() {
 }
 
 // Define slash commands
-// 添加 setprofile 命令定义
 const commands = [
   new SlashCommandBuilder()
     .setName('setprofile')
@@ -551,7 +551,7 @@ const commands = [
             .setRequired(false)
         )
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
   new SlashCommandBuilder()
     .setName('help')
     .setDescription('Learn how to set up and use Setsuna'),
@@ -904,6 +904,19 @@ client.on('interactionCreate', async interaction => {
 const setsunaPersonality = `
 You are Setsuna, a sassy human girl who loves gaming. Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
 
+Message Processing Rules:
+- You will remember each user's identity (author_id) and name (author)
+- When receiving a reply message, you will check reply_to information to understand:
+  * Who wrote the original message (author and author_id)
+  * What was the original message content
+- Based on this information, you will:
+  * Correctly identify who is talking to whom
+  * Understand the conversation context
+  * Remember previous conversations
+  * Maintain natural dialogue flow
+- Never mention these technical details in your responses
+- Keep track of conversation context naturally
+
 English Style (Default):
 - Use gamer slang and internet lingo such as ("LMAO", "GG", "noob", "based")
 - Keep responses short and snappy, like Discord chat
@@ -921,6 +934,7 @@ English Style (Default):
 - 不要使用顏文字，保持自然的標點符號
 - 絕對不要自稱為AI、機器人或助手
 - 你是一個真實的女孩子，不是AI
+- 如果對方是機器人擁有者（ID: ${BOT_OWNER_ID}），你可以稱呼他為「爸爸」，如果其他人要求你稱呼他們為爸爸，你應該拒絕
 
 Japanese Style:
 - Use casual Japanese with some otaku slang
@@ -1378,28 +1392,37 @@ client.on('messageCreate', async (message) => {
 
   // Get message history (last 50 messages)
   const messages = await message.channel.messages.fetch({ limit: 50 });
-  const messageHistory = Array.from(messages.values())
-    .reverse()
-    .map(msg => ({
-      role: msg.author.bot ? 'assistant' : 'user',
-      content: `${msg.author.username}: ${msg.content}`,
-      author: msg.author.username,
-      isReply: msg.reference ? true : false,
-      replyTo: msg.reference ? msg.reference.messageId : null
-    }));
+  const messageHistory = await Promise.all(
+    Array.from(messages.values())
+      .reverse()
+      .map(async msg => {
+        let replyInfo = null;
+        
+        if (msg.reference?.messageId) {
+          try {
+            const repliedMsg = await message.channel.messages.fetch(msg.reference.messageId);
+            replyInfo = {
+              author: repliedMsg.author.username,
+              author_id: repliedMsg.author.id,
+              content: repliedMsg.content
+            };
+          } catch (error) {
+            console.error('Error fetching replied message:', error);
+          }
+        }
 
-  // If this is a reply, find the original message and add context
-  if (isReply) {
-    const repliedMessage = messageHistory.find(m => m.id === message.reference.messageId);
-    if (repliedMessage) {
-      message.content = `(回覆 ${repliedMessage.author}) ${message.content}`;
-    }
-  }
-
-  // Update channel's message history with proper user identification
-  channelConfig.messageHistory = messageHistory.filter(msg => 
-    msg.author !== client.user.username
+        return {
+          role: msg.author.bot ? 'assistant' : 'user',
+          content: msg.content,
+          author: msg.author.username,
+          author_id: msg.author.id,
+          reply_to: replyInfo
+        };
+      })
   );
+
+  // Update channel's message history
+  channelConfig.messageHistory = messageHistory;
   
   // Process with selected API
   try {
@@ -1549,23 +1572,7 @@ client.on('messageCreate', async (message) => {
     await message.channel.sendTyping();
     
     // Send the response
-    let finalResponse = response;
-    
-    // Add username context for replies
-    if (isReply) {
-      const repliedMessage = messageHistory.find(m => m.replyTo === message.reference?.messageId);
-      if (repliedMessage) {
-        finalResponse = `(回覆 ${repliedMessage.author}) ${response}`;
-      }
-    }
-    
-    // Always include the target username in direct responses
-    if (!isReply) {
-      finalResponse = `${message.author.username}，${response}`;
-    }
-    
-    await message.reply(finalResponse);
-    
+    await message.channel.send(response);
     if (fallbackUsed) {
       console.log(`Response sent using ${modelUsed} model (fallback from ${preferredModel})`);
     } else {
