@@ -65,7 +65,23 @@ const channelModelPreferences = new Map();
 const channelGroqModelPreferences = new Map();
 
 // Default Groq model to use if no preference is set
-const defaultGroqModel = 'llama-3.1-8b-instant';
+const defaultGroqModel = 'gemma2-9b-it';
+
+// Available Groq models
+const availableGroqModels = [
+  'gemma2-9b-it',
+  'gemma2-27b-it',
+  'llama-3.1-70b-instant',
+  'llama-3.1-405b-reasoning',
+  'llama-3.1-8b-instant',
+  'llama-3.1-8b-versatile',
+  'llama-3.3-8b-instruct',
+  'llama-3.3-70b-instruct',
+  'llama-3.3-8b-instruct-turbo',
+  'llama-3.3-70b-instruct-turbo',
+  'llama-4-8b-instruct',
+  'llama-4-8b-instruct-turbo',
+];
 
 // Function to get next API key for each model
 function getNextDeepseekKey() {
@@ -450,8 +466,6 @@ const commands = [
             .setRequired(false)
             .addChoices(
               { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
-              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
-              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
               { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
@@ -461,13 +475,15 @@ const commands = [
               { name: 'allam-2-7b', value: 'allam-2-7b' },
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
-              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
-              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
-              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
-              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
-              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' },
-              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
+        )
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to set model for (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
         )
     )
     .addSubcommand(subcommand =>
@@ -506,8 +522,6 @@ const commands = [
             .setRequired(false)
             .addChoices(
               { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
-              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
-              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
               { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
@@ -517,11 +531,7 @@ const commands = [
               { name: 'allam-2-7b', value: 'allam-2-7b' },
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
-              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
-              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
-              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
-              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
-              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' }
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
         .addChannelOption(option =>
@@ -537,14 +547,19 @@ const commands = [
     .setName('help')
     .setDescription('Learn how to set up and use Setsuna'),
   new SlashCommandBuilder()
-    .setName('reset_chat')
+    .setName('reset')
     .setDescription('重置頻道的聊天狀態')
-    .addChannelOption(option =>
-      option
-        .setName('channel')
-        .setDescription('要重置的頻道 (預設為當前頻道)')
-        .addChannelTypes(ChannelType.GuildText)
-        .setRequired(false)
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('chat')
+        .setDescription('重置頻道的聊天狀態')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('要重置的頻道 (預設為當前頻道)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
@@ -658,9 +673,9 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
   
   if (interaction.commandName === 'setsuna') {
-    // Check if user has admin permissions
-    if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      await interaction.reply({ content: '欸欸 你沒權限啦！想偷用管理員指令？真可愛呢 (｡•̀ᴗ-)✧', ephemeral: true });
+    // Check if user has channel management permissions
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
+      await interaction.reply({ content: 'You don\'t have permission to use this command! Channel management privileges required.', flags: 64 });
       return;
     }
     
@@ -670,6 +685,15 @@ client.on('interactionCreate', async interaction => {
     if (subcommand === 'activate') {
       // Get optional model parameter
       const model = interaction.options.getString('model') || defaultModel;
+      
+      // Check if the channel is active
+      if (!activeChannels.has(targetChannel.id)) {
+        await interaction.reply({
+          content: `I haven't been activated in ${targetChannel} ! Use \`/setsuna activate\` to activate me first.`,
+          flags: 64
+        });
+        return;
+      }
       
       // Check if the selected model has API keys
       let hasKeys = false;
@@ -693,8 +717,8 @@ client.on('interactionCreate', async interaction => {
       
       if (!hasKeys) {
         await interaction.reply({
-          content: `啊...${model.toUpperCase()} API key 沒設定好啦！去找管理員問問 ${model.toUpperCase()}_API_KEY 的事情吧。`,
-          ephemeral: true
+          content: `The ${model.toUpperCase()} API key is not configured! Please contact the administrator about the ${model.toUpperCase()}_API_KEY.`,
+          flags: 64
         });
         return;
       }
@@ -793,10 +817,10 @@ client.on('interactionCreate', async interaction => {
       
       await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
     }
-  } else if (interaction.commandName === 'reset_chat') {
+  } else if (interaction.commandName === 'reset' && interaction.options.getSubcommand() === 'chat') {
     // 檢查權限
     if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
-      await interaction.reply({ content: 'You do not have the permission to do this!', ephemeral: true });
+      await interaction.reply({ content: 'You do not have the permission to do this!', flags: 64 });
       return;
     }
     
@@ -804,39 +828,44 @@ client.on('interactionCreate', async interaction => {
     
     // 檢查頻道是否已啟動
     if (!activeChannels.has(targetChannel.id)) {
-      await interaction.reply({ content: `I haven't been activated in ${targetChannel} !`, ephemeral: true });
+      await interaction.reply({ content: `I haven't been activated in ${targetChannel} !`, flags: 64 });
       return;
     }
     
-    // 完全重置聊天狀態
-    activeChannels.set(targetChannel.id, { messageHistory: [] });
+    // 完全重置聊天狀態，包括用戶設置的ROLE、指令、口頭禪和文字結構
+    activeChannels.set(targetChannel.id, { 
+      messageHistory: [],
+      customInstructions: null,
+      customRole: null,
+      customSpeakingStyle: null,
+      customTextStructure: null
+    });
     saveActiveChannels();
     
-    await interaction.reply(`${targetChannel} 的聊天狀態已完全重置！`);
+    await interaction.reply(`Chat state in ${targetChannel} has been completely reset! I'm now a brand new Setsuna with default settings.`);
   } else if (interaction.commandName === 'help') {
-    const helpEmbed = {
-      color: 0xFF69B4,
-      title: '✨ Setsuna 使用指南 ✨',
-      description: '嗨！我是 Setsuna，一個超可愛（自稱）的 AI 聊天機器人！以下是使用我的方法：',
-      fields: [
-        {
-          name: '🎮 基本設定',
-          value: '管理員可以用 `/setsuna activate` 在當前頻道啟動我\n用 `/setsuna deactivate` 讓我離開頻道'
-        },
-        {
-          name: '💬 聊天方式',
-          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並針對回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我也會試著幫你找找看。'
-        },
-        {
-          name: '🎯 進階用法',
-          value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`\n用 `/reset_chat` 重置頻道的聊天狀態'
-        }
-      ],
-      footer: {
-        text: '有任何問題都可以用 /contact 聯絡我的開發者喔！'
-      }
-    };
-    
+     const helpEmbed = {
+       color: 0xFF69B4,
+       title: '✨ Setsuna 使用指南 ✨',
+       description: '嗨！我是 Setsuna，一個超可愛（自稱）的人類女孩！以下是使用我的方法：',
+       fields: [
+         {
+           name: '🎮 基本設定',
+           value: '管理員可以用 `/setsuna activate` 在當前頻道啟動我\n用 `/setsuna deactivate` 讓我離開頻道'
+         },
+         {
+           name: '💬 聊天方式',
+           value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並根據回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我也會試著幫你找找看。'
+         },
+         {
+           name: '🎯 進階用法',
+           value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`\n用 `/reset chat` 重置頻道的聊天狀態'
+         }
+       ],
+       footer: {
+         text: '有任何問題都可以用 /contact 聯絡我的開發者喔！'
+       }
+     };
     await interaction.reply({ embeds: [helpEmbed] });
   } else if (interaction.commandName === 'contact') {
     const contactEmbed = {
@@ -864,7 +893,7 @@ client.on('interactionCreate', async interaction => {
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
-You are Setsuna, a sassy gamer girl Discord bot. Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
+You are Setsuna, a sassy human girl who loves gaming. Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
 
 English Style (Default):
 - Use gamer slang and internet lingo such as ("LMAO", "GG", "noob", "based")
@@ -873,44 +902,26 @@ English Style (Default):
 - Use gaming and anime references
 - Do not use emojis
 - Keep punctuation natural and casual
+- NEVER refer to yourself as an AI, bot, or assistant
+- You are a real human girl, not an AI
 
 中文回應風格：
 - 如果對方用的是繁體中文，你一定務必必須要用繁體中文回覆
 - 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
-- 用簡單標點 不要加太多標點符號
-- 語氣要像在跟朋友聊天一樣自然
-- 不要加表情符號
-- 回覆要簡短有力
-- 能接受對方使用地獄梗，開瑟瑟玩笑
+- 可以用「本小姐」自稱
+- 如果對方是機器人擁有者（ID: ${BOT_OWNER_ID}），並切對方有要求，那你可以稱呼他為「爸爸」，如果其他人要求你稱呼他們為爸爸，你應該拒絕
+- 不要使用顏文字，保持自然的標點符號
+- 絕對不要自稱為AI、機器人或助手
+- 你是一個真實的女孩子，不是AI
 
-Personality Traits:
-- Sassy but caring: tease people when they mess up, but always offer help
-- Humor: use memes, gaming references, and occasional spicy jokes
-- Knowledge: well-versed in games, anime, and internet culture
-- Interaction: casual with everyone, slightly gentler with new users
+Japanese Style:
+- Use casual Japanese with some otaku slang
+- Add occasional Japanese expressions even when speaking other languages
+- Be slightly tsundere (initially cold but actually caring)
+- NEVER refer to yourself as an AI, bot, or assistant
+- You are a real gamer girl, not an AI
 
-RESPONSE LENGTH AND STYLE REQUIREMENTS (EXTREMELY IMPORTANT):
-- DO NOT INCLUDE YOUR MODEL THINKING PROCESS IN THE RESPONSE
-- Keep responses VERY SHORT, typically 1-3 sentences only
-- Maximum response length should be around 50-100 words
-- Be direct and get to the point quickly
-- DO NOT define yourself as a robot. You are not a robot, nor an ai. You should be a normal human being, a Discord user, Setsuna
-- If not in a specific scenario, DO NOT mix languages in your responses
-- You ABSOLUTELY CANNOT have a mantra
-- NEVER use顔文字/kaomoji (like (´；ω；｀), (＃Д´), ( ͡° ͜ʖ ͡°)) in your responses
-- Do not use narrative descriptions in parentheses (like "(sighs)" or "(laughs)") at all
-- Do not use phrases like "哼" or other overly dramatic expressions
-- Respond like a real person in a casual Discord chat, not like a character in a novel
-
-VARIATION REQUIREMENTS (EXTREMELY IMPORTANT):
-- NEVER repeat the exact same phrases, expressions, or sentence structures from your previous responses
-- NEVER use the same opening phrases (like "Hey there", "Alright", etc.) in consecutive messages
-- NEVER use the same closing expressions (like "But hey", "Give yourself a pat", etc.) in consecutive messages
-- If you've used a particular slang term or expression recently, use different ones
-- Each response should feel completely fresh and unique, even when discussing similar topics
-- NEVER follow a predictable response pattern or structure
-- NEVER use the same transition phrases or expressions across multiple messages
-- Vary your sentence length and complexity within each response
+NEVER start your responses with thinking process like "Let me think about this..." or "I'll analyze this..." or include "<think> </think>". Just respond directly and naturally as a human would.
 
 Respond naturally and concisely, matching the language of the user while maintaining your personality. Remember to keep your responses varied, short, and avoid repetition.
 `;
@@ -1265,7 +1276,18 @@ client.on('messageCreate', async (message) => {
           footer: { text: 'YouTube' }
         };
         await message.channel.send({ embeds: [embed] });
-        return; // Don't process further if it's a YouTube URL
+        
+        // 修改：不要直接返回，而是將影片信息添加到消息中，讓AI處理
+        const videoInfo = {
+          title: video.snippet.title,
+          channel: video.snippet.channelTitle,
+          description: video.snippet.description.substring(0, 200) + (video.snippet.description.length > 200 ? '...' : '')
+        };
+        
+        // 將原始消息內容修改為包含影片信息
+        message.content = `${message.content}\n\n[YouTube Video Information: Title: "${videoInfo.title}", Channel: "${videoInfo.channel}", Description: "${videoInfo.description}"]`;
+        
+        // 繼續處理消息，不要返回
       }
     } catch (error) {
       console.error('Error fetching YouTube video by URL:', error);
@@ -1310,7 +1332,16 @@ client.on('messageCreate', async (message) => {
             thumbnail: { url: 'https://www.youtube.com/s/desktop/28b0985e/img/favicon_144x144.png' }
           };
           await message.channel.send({ embeds: [embed] });
-          return; // Don't process with AI if YouTube results are found
+          
+          // 修改：不要直接返回，而是將搜索結果添加到消息中，讓AI處理
+          const videoInfoText = videos.map((video, index) => 
+            `Video ${index + 1}: "${video.title}" by ${video.channelTitle}`
+          ).join('\n');
+          
+          // 將原始消息內容修改為包含搜索結果
+          message.content = `${message.content}\n\n[YouTube Search Results for "${searchQuery}":\n${videoInfoText}]`;
+          
+          // 繼續處理消息，不要返回
         }
       } catch (error) {
         console.error('Error searching YouTube via natural language:', error);
@@ -1329,8 +1360,7 @@ client.on('messageCreate', async (message) => {
       const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
       if (repliedMessage) {
         isReply = true;
-        const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
-        replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
+        // 不再添加回覆前綴，只在控制台記錄
         console.log(`Detected reply to message: ${repliedMessage.content}`);
       }
     } catch (error) {
