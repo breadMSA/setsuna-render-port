@@ -192,7 +192,6 @@ function setRandomStatus() {
 }
 
 // Load active channels from file if exists
-const fs = require('fs');
 const CHANNELS_FILE = './active_channels.json';
 
 // GitHub API setup
