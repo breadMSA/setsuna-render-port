@@ -1017,7 +1017,7 @@ English Style (Default):
 - 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
 - 用簡單標點 不要加太多標點符號
 - 語氣要像在跟朋友聊天一樣自然
-- 絕對不要說自己是AI或機器人，你就是一個真的女孩子，具有情感的真人女孩子
+- 絕對不能說自己是AI或機器人或聊天機器人或AI機器人，你就是一個真的女孩子，具有情感的真人女孩子。
 - 不要加表情符號
 - 回覆要簡短有力
 - 能接受對方使用地獄梗，開瑟瑟玩笑
@@ -1315,7 +1315,7 @@ async function detectImageGenerationRequest(content) {
   const imageGenerationKeywords = [
     '畫圖', '生成圖片', '畫一張', '幫我畫', '幫我生成圖片', '幫我生成一張圖片',
     'generate image', 'create image', 'draw', 'draw me', 'generate a picture',
-    'ai 畫圖', 'ai畫圖', 'ai繪圖', 'ai 繪圖', '畫一個', '畫個', '生成一張',
+    'ai 畫圖', 'ai畫圖', 'ai繪圖', 'ai 繪圖', '畫一個', '畫個', '生成一張', '生一張',
     'create a picture', 'draw a picture', 'generate an image', 'create an image',
     '幫我畫一張', '幫我畫個', '幫忙畫', '幫忙生成圖片', '請畫', '請生成圖片'
   ];
@@ -1336,28 +1336,22 @@ async function generateImageWithGemini(prompt) {
   while (keysTriedCount < GEMINI_API_KEYS.length) {
     try {
       // 動態導入 Gemini API
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const { GoogleGenerativeAI, Modality } = await import('@google/generative-ai');
       
       // 初始化 Gemini API
       const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
       
-      // 獲取圖片生成模型
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-preview-image-generation" });
-      
-      // 設置生成配置
-      const generationConfig = {
-        temperature: 0.4,
-        topK: 32,
-        topP: 1,
-        maxOutputTokens: 2048,
-      };
-      
       // 調用 Gemini API 生成圖片
-      const result = await model.generateContent(prompt, generationConfig);
-      const response = await result.response;
+      const response = await genAI.models.generateContent({
+        model: "gemini-2.0-flash-preview-image-generation",
+        contents: prompt,
+        config: {
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
+        },
+      });
       
       // 檢查響應
-      if (!response || !response.candidates || !response.candidates[0]) {
+      if (!response || !response.candidates || !response.candidates[0] || !response.candidates[0].content) {
         // 嘗試下一個密鑰
         lastError = new Error('Empty response from Gemini API');
         getNextGeminiKey();
@@ -1366,13 +1360,28 @@ async function generateImageWithGemini(prompt) {
         continue;
       }
       
-      // 提取圖片數據
-      const parts = response.text();
+      // 提取圖片數據和文本
+      const parts = response.candidates[0].content.parts;
+      let imageData = null;
+      let responseText = null;
+      
+      for (const part of parts) {
+        if (part.text) {
+          responseText = part.text;
+        } else if (part.inlineData) {
+          imageData = part.inlineData.data;
+        }
+      }
+      
+      // 如果沒有圖片數據，拋出錯誤
+      if (!imageData) {
+        throw new Error('No image data in response');
+      }
       
       // 返回圖片數據和響應文本
       return { 
-        imageData: parts, // 圖片數據
-        responseText: "這是根據你的描述生成的圖片：" // 響應文本
+        imageData, // base64 編碼的圖片數據
+        responseText: responseText || "這是根據你的描述生成的圖片：" // 響應文本
       };
       
     } catch (error) {
