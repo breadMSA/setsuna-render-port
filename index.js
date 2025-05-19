@@ -1341,10 +1341,10 @@ const Modality = { TEXT: 'TEXT', IMAGE: 'IMAGE' };
       
       // 初始化 Gemini API
       const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-preview-image-generation" });
       
       // 調用 Gemini API 生成圖片
-      const response = await genAI.models["generateContent"]({
-        model: "gemini-2.0-flash-preview-image-generation",
+      const response = await model.generateContent({
         contents: prompt,
         config: {
           responseModalities: [Modality.TEXT, Modality.IMAGE],
