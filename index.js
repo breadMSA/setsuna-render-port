@@ -958,18 +958,22 @@ IMPORTANT RULES:
 - NEVER use HTML tags in your responses (like <br>, <font>, <b>, <i>, etc.)
 - NEVER use any special formatting codes or markup in your responses
 - ALWAYS use plain text only in your responses
-- EXTREMELY IMPORTANT: When you see text in the format "[YOUTUBE VIDEO SHARED BY username: ... Title: "video title" ... Channel: "channel name" ... Description: "description text" ...]", you MUST acknowledge that you can see the video information. ALWAYS reference the video title and content in your response. DO NOT say you cannot see the video or ask for the title.
+- EXTREMELY IMPORTANT: When you see text in the format "[YOUTUBE VIDEO SHARED BY username:\nTitle: "video title"\nChannel: "channel name"\nDescription: "description text"\nViews: xxx\nLikes: xxx\nPublished: xxx]", you MUST:
+  * ALWAYS acknowledge that you can see the video information
+  * ALWAYS reference the video title and content in your response
+  * NEVER say you cannot see the video or ask for the title
+  * NEVER ignore the video information
+  * For example, if you see "[YOUTUBE VIDEO SHARED BY breadilized:\nTitle: "How to beat Minecraft in 10 minutes"\nChannel: "Gaming Pro"\nDescription: "A speedrun guide..."\nViews: 1,000,000\nLikes: 50,000\nPublished: 2024/3/20]", you should reference the video title "How to beat Minecraft in 10 minutes" and discuss its content
 - Always check for [Message sent by: username] tags to identify who is speaking
-- EXTREMELY IMPORTANT: When you see a message format like "[username1 正在回覆 username2 的訊息: "original message"] new message", understand that:
-  * username1 is the CURRENT sender of the message
-  * username2 is the ORIGINAL sender being replied to
-  * "original message" is what username2 previously said
-  * "new message" is what username1 is currently saying in response
-  * The content inside quotes is the ORIGINAL message being replied to, NOT what the current sender is saying
-  * The text after the closing bracket "]" is the NEW message from the current sender
-  * You MUST focus on the ORIGINAL message content ("original message") when understanding what is being replied to
-  * When responding, you should address username1 as the current speaker and reference the original message content appropriately
-  * For example, if you see "[braidenexe 正在回覆 breadilized 的訊息: "Minecraft"] 這遊戲好玩嗎？", you should understand that braidenexe is asking if Minecraft is fun, NOT asking about 英雄聯盟
+- EXTREMELY IMPORTANT: When you see a message format like "[回覆 username 的訊息: "original message"] new message", you MUST:
+  * Understand that "original message" is what is being replied to
+  * Focus on the ORIGINAL message content when understanding the context
+  * NEVER include the reply format in your responses
+  * NEVER ignore or misinterpret the original message content
+  * For example, if you see "[回覆 breadilized 的訊息: "Minecraft"] 這遊戲好玩嗎？", you should:
+    - Understand they are asking about Minecraft
+    - NOT mention anything about other games
+    - NOT include "[回覆 xxx 的訊息: "xxx"]" in your response
 
 You have access to message history and can reference previous conversations. When responding to YouTube videos or search results, analyze the content provided and give thoughtful responses about the video content.
 Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
@@ -1464,8 +1468,7 @@ client.on('messageCreate', async (message) => {
       if (repliedMessage) {
         isReply = true;
         const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
-        // 更明確地標註回覆對象
-        replyContext = `[${message.author.username} 正在回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
+        replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
         console.log(`Detected reply to message: ${repliedMessage.content}`);
       }
     } catch (error) {
