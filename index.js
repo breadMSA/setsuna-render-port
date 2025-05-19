@@ -1377,8 +1377,8 @@ client.on('messageCreate', async (message) => {
           publishDate: new Date(video.snippet.publishedAt).toLocaleDateString()
         };
         
-        // 將原始消息內容修改為包含影片信息和發送者訊息
-        message.content = `${message.content}\n\n[YouTube Video Information:\nTitle: "${videoInfo.title}"\nChannel: "${videoInfo.channel}"\nDescription: "${videoInfo.description.substring(0, 300)}${videoInfo.description.length > 300 ? '...' : ''}"\nViews: ${videoInfo.views}\nLikes: ${videoInfo.likes}\nPublished: ${videoInfo.publishDate}]\n\n[Message sent by: ${message.author.username}]`;
+        // 將原始消息內容修改為包含影片信息和發送者訊息，使用更明確的格式
+        message.content = `${message.content}\n\n[YOUTUBE VIDEO SHARED BY ${message.author.username}:\nTitle: "${videoInfo.title}"\nChannel: "${videoInfo.channel}"\nDescription: "${videoInfo.description.substring(0, 300)}${videoInfo.description.length > 300 ? '...' : ''}"\nViews: ${videoInfo.views}\nLikes: ${videoInfo.likes}\nPublished: ${videoInfo.publishDate}]\n\n[Message sent by: ${message.author.username}]`;
         
         // 繼續處理消息，不要返回
       }
@@ -1482,11 +1482,20 @@ client.on('messageCreate', async (message) => {
   
   // If this is a reply, modify the current message content to include context
   if (isReply) {
-    // Find the current message in the history and add reply context
+    // 修改：直接修改原始消息內容，確保包含回覆上下文
+    message.content = replyContext + message.content;
+    
+    // 更新消息歷史中的當前消息
     for (let i = 0; i < messageHistory.length; i++) {
-      if (messageHistory[i].role === 'user' && messageHistory[i].content === message.content) {
-        messageHistory[i].content = replyContext + message.content;
-        break;
+      // 使用作者名稱和角色來識別當前消息，而不是比對內容
+      if (messageHistory[i].role === 'user' && messageHistory[i].author === message.author.username) {
+        // 檢查是否為最新的消息（通常是歷史記錄中的最後一條）
+        if (i === messageHistory.length - 1 || 
+            (i < messageHistory.length - 1 && messageHistory[i+1].author !== message.author.username)) {
+          messageHistory[i].content = message.content;
+          console.log(`Updated message history with reply context: ${message.content}`);
+          break;
+        }
       }
     }
   }
