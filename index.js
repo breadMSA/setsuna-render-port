@@ -1342,7 +1342,7 @@ async function generateImageWithGemini(prompt) {
       const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
       
       // 獲取圖片生成模型
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-preview-image-generation" });
       
       // 設置生成配置
       const generationConfig = {
