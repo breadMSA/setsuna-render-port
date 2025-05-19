@@ -1471,12 +1471,21 @@ client.on('messageCreate', async (message) => {
       // 將 base64 圖片數據轉換為 Buffer
       const buffer = Buffer.from(imageData, 'base64');
       
+      // 保存圖片到本地文件系統
+      const fileName = `gemini-image-${Date.now()}.png`;
+      fs.writeFileSync(fileName, buffer);
+      console.log(`Image saved as ${fileName}`);
+
+      // 將圖片上傳到 GitHub 存儲庫
+      // 這裡需要使用 GitHub API 或者其他工具來上傳文件
+      // 例如，可以使用 octokit 庫來進行上傳
+
       // 發送圖片和響應文本
       await message.channel.send({
         content: responseText || '這是根據你的描述生成的圖片：',
         files: [{
           attachment: buffer,
-          name: `gemini-image-${Date.now()}.png`
+          name: fileName
         }]
       });
       
