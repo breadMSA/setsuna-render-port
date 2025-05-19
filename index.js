@@ -953,6 +953,8 @@ IMPORTANT RULES:
 - NEVER include text like "[Reply to username's message: "message content"]" in your responses
 - NEVER identify yourself as a bot, AI, or machine - you are Setsuna, a real gamer girl
 - ALWAYS maintain your character as Setsuna in every response
+- PAY ATTENTION to who is speaking in the conversation. Different messages may come from different users in the same channel. Always check the username of who sent each message and respond accordingly.
+- When responding to a message that mentions another user, be aware of the conversation context and who is talking to whom.
 
 You have access to message history and can reference previous conversations. When responding to YouTube videos or search results, analyze the content provided and give thoughtful responses about the video content.
 Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
@@ -974,6 +976,7 @@ English Style (Default):
 - 不要加表情符號
 - 回覆要簡短有力
 - 能接受對方使用地獄梗，開瑟瑟玩笑
+- 偶爾用「本小姐」自稱，但不要過度使用
 
 Personality Traits:
 - Sassy but caring: tease people when they mess up, but always offer help
@@ -1369,8 +1372,8 @@ client.on('messageCreate', async (message) => {
           publishDate: new Date(video.snippet.publishedAt).toLocaleDateString()
         };
         
-        // 將原始消息內容修改為包含影片信息
-        message.content = `${message.content}\n\n[YouTube Video Information:\nTitle: "${videoInfo.title}"\nChannel: "${videoInfo.channel}"\nDescription: "${videoInfo.description.substring(0, 300)}${videoInfo.description.length > 300 ? '...' : ''}"\nViews: ${videoInfo.views}\nLikes: ${videoInfo.likes}\nPublished: ${videoInfo.publishDate}]`;
+        // 將原始消息內容修改為包含影片信息和發送者訊息
+        message.content = `${message.content}\n\n[YouTube Video Information:\nTitle: "${videoInfo.title}"\nChannel: "${videoInfo.channel}"\nDescription: "${videoInfo.description.substring(0, 300)}${videoInfo.description.length > 300 ? '...' : ''}"\nViews: ${videoInfo.views}\nLikes: ${videoInfo.likes}\nPublished: ${videoInfo.publishDate}]\n\n[Message sent by: ${message.author.username}]`;
         
         // 繼續處理消息，不要返回
       }
@@ -1423,8 +1426,8 @@ client.on('messageCreate', async (message) => {
             `Video ${index + 1}: "${video.title}" by ${video.channelTitle}`
           ).join('\n');
           
-          // 將原始消息內容修改為包含搜索結果
-          message.content = `${message.content}\n\n[YouTube Search Results for "${searchQuery}":\n${videoInfoText}]`;
+          // 將原始消息內容修改為包含搜索結果和發送者訊息
+          message.content = `${message.content}\n\n[YouTube Search Results for "${searchQuery}":\n${videoInfoText}]\n\n[Message sent by: ${message.author.username}]`;
           
           // 繼續處理消息，不要返回
         }
@@ -1458,11 +1461,18 @@ client.on('messageCreate', async (message) => {
   const messages = await message.channel.messages.fetch({ limit: 50 });
   const messageHistory = Array.from(messages.values())
     .reverse()
-    .map(msg => ({
-      role: msg.author.bot ? 'assistant' : 'user',
-      content: msg.content,
-      author: msg.author.username
-    }));
+    .map(msg => {
+      // 為非機器人訊息添加發送者訊息
+      let content = msg.content;
+      if (!msg.author.bot && !content.includes('[Message sent by:')) {
+        content = `${content}\n\n[Message sent by: ${msg.author.username}]`;
+      }
+      return {
+        role: msg.author.bot ? 'assistant' : 'user',
+        content: content,
+        author: msg.author.username
+      };
+    });
   
   // If this is a reply, modify the current message content to include context
   if (isReply) {
