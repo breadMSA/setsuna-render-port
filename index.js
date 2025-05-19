@@ -1342,7 +1342,7 @@ async function generateImageWithGemini(prompt) {
       const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
       
       // 調用 Gemini API 生成圖片
-      const response = await genAI.models.generateContent({
+      const response = await genAI.generateContent({
         model: "gemini-2.0-flash-preview-image-generation",
         contents: prompt,
         config: {
