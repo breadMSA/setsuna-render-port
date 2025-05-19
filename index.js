@@ -1462,73 +1462,47 @@ client.on('messageCreate', async (message) => {
 // Check if the message is a reply to another message
 
 let replyContext = "";
-
 let isReply = false;
 
 if (message.reference && message.reference.messageId) {
+  try {
+    // 取得被回覆的訊息
+    const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
 
-try {
+    if (repliedMessage) {
+      isReply = true;
+      const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
+      replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
 
-// Fetch the message being replied to
+      console.log(`Detected reply to message: ${repliedMessage.content}`);
+    }
 
-const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
-
-if (repliedMessage) {
-
-isReply = true;
-
-const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
-
-replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
-
-console.log(`Detected reply to message: ${repliedMessage.content}`);
-
+  } catch (error) {
+    console.error('Error fetching replied message:', error);
+  }
 }
 
-} catch (error) {
-
-console.error('Error fetching replied message:', error);
-
-}
-
-}
-
-// Get message history (last 50 messages)
-
+// 抓取最近的 50 則訊息作為對話歷史
 const messages = await message.channel.messages.fetch({ limit: 50 });
-
 const messageHistory = Array.from(messages.values())
+  .reverse()
+  .map(msg => ({
+    role: msg.author.bot ? 'assistant' : 'user',
+    content: msg.content,
+    author: msg.author.username
+  }));
 
-.reverse()
-
-.map(msg => ({
-
-role: msg.author.bot ? 'assistant' : 'user',
-
-content: msg.content,
-
-author: msg.author.username
-
-}));
-
-// If this is a reply, modify the current message content to include context
-
+// 如果是回覆，將原訊息內容加上上下文說明
 if (isReply) {
-
-// Find the current message in the history and add reply context
-
-for (let i = 0; i < messageHistory.length; i++) {
-
-if (messageHistory[i].role === 'user' && messageHistory[i].content === message.content) {
-
-messageHistory[i].content = replyContext + message.content;
-
-break;
-
-}
-
-}
-
+  for (let i = 0; i < messageHistory.length; i++) {
+    if (
+      messageHistory[i].role === 'user' &&
+      messageHistory[i].content === message.content
+    ) {
+      messageHistory[i].content = replyContext + message.content;
+      break;
+    }
+  }
 }
   
   // Update channel's message history
