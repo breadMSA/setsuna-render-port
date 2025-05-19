@@ -1312,17 +1312,17 @@ async function callGeminiAPI(messages) {
 // 檢測用戶是否想要生成圖片的函數
 async function detectImageGenerationRequest(content) {
   // 定義可能表示用戶想要生成圖片的關鍵詞
-  /*const imageGenerationKeywords = [
+  const imageGenerationKeywords = [
     '畫圖', '生成圖片', '畫一張', '幫我畫', '幫我生成圖片', '幫我生成一張圖片',
     'generate image', 'create image', 'draw', 'draw me', 'generate a picture',
     'ai 畫圖', 'ai畫圖', 'ai繪圖', 'ai 繪圖', '畫一個', '畫個', '生成一張', '生一張',
     'create a picture', 'draw a picture', 'generate an image', 'create an image',
     '幫我畫一張', '幫我畫個', '幫忙畫', '幫忙生成圖片', '請畫', '請生成圖片'
   ];
-  */
-  const imageGenerationKeywords = [
+  
+  /*const imageGenerationKeywords = [
     'qwejasuijasmcjnausf biawe gfisod biUOSDf hnboipawebyu ofguaobusd uhf '
-  ];
+  ];*/
   
   // 檢查內容是否包含任何關鍵詞
   return imageGenerationKeywords.some(keyword => 
