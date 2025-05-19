@@ -1349,7 +1349,7 @@ async function generateImageWithGemini(prompt) {
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-preview-image-generation" });
       
       // 調用 Gemini API 生成圖片
-      const response = await model.generateContent(prompt);
+      const response = await model.generateContent(prompt, { responseModalities: ['IMAGE', 'TEXT'] });
       
       // 獲取響應內容
       const result = await response.response();
