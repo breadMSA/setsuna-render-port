@@ -70,17 +70,17 @@ const defaultGroqModel = 'gemma2-9b-it';
 // Available Groq models
 const availableGroqModels = [
   'gemma2-9b-it',
-  'gemma2-27b-it',
-  'llama-3.1-70b-instant',
-  'llama-3.1-405b-reasoning',
   'llama-3.1-8b-instant',
-  'llama-3.1-8b-versatile',
-  'llama-3.3-8b-instruct',
-  'llama-3.3-70b-instruct',
-  'llama-3.3-8b-instruct-turbo',
-  'llama-3.3-70b-instruct-turbo',
-  'llama-4-8b-instruct',
-  'llama-4-8b-instruct-turbo',
+  'llama-3.3-70b-versatile',
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'llama3-70b-8192',
+  'llama3-8b-8192',
+  'allam-2-7b',
+  'gemma2-27b-it',
+  'compound-beta',
+  'compound-beta-mini',
+  'mistral-saba-24b'
 ];
 
 // Function to get next API key for each model
@@ -311,6 +311,8 @@ async function loadActiveChannels() {
         saveActiveChannels();
       }
     }
+    console.log('Loaded active channels and model preferences from file');
+    loaded = true;
   } catch (error) {
     console.error('Error loading active channels:', error);
   }
@@ -465,24 +467,18 @@ const commands = [
             .setDescription('Select a specific Groq model (only applies when Groq is selected)')
             .setRequired(false)
             .addChoices(
-              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
-              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
-              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+              { name: 'gemma2-9b-it (Default)', value: 'gemma2-9b-it' },
+              { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
-              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
               { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
               { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
               { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'gemma2-27b-it', value: 'gemma2-27b-it' },
               { name: 'allam-2-7b', value: 'allam-2-7b' },
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
-              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
-              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
-              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
-              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
-              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' },
-              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
     )
@@ -521,23 +517,18 @@ const commands = [
             .setDescription('Select a specific Groq model (only applies when Groq is selected)')
             .setRequired(false)
             .addChoices(
-              { name: 'llama-3.1-8b-instant (Default)', value: 'llama-3.1-8b-instant' },
-              { name: 'llama-3.1-70b-versatile', value: 'llama-3.1-70b-versatile' },
-              { name: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+              { name: 'gemma2-9b-it (Default)', value: 'gemma2-9b-it' },
+              { name: 'llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
               { name: 'llama-3.3-70b-versatile', value: 'llama-3.3-70b-versatile' },
-              { name: 'gemma2-9b-it', value: 'gemma2-9b-it' },
               { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
               { name: 'meta-llama/llama-4-scout-17b-16e-instruct', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
               { name: 'llama3-70b-8192', value: 'llama3-70b-8192' },
               { name: 'llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'gemma2-27b-it', value: 'gemma2-27b-it' },
               { name: 'allam-2-7b', value: 'allam-2-7b' },
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
-              { name: 'deepseek-r1-distill-llama-70b', value: 'deepseek-r1-distill-llama-70b' },
-              { name: 'llama-guard-3-8b', value: 'llama-guard-3-8b' },
-              { name: 'meta-llama/llama-guard-4-12b', value: 'meta-llama/llama-guard-4-12b' },
-              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' },
-              { name: 'qwen-qwq-32b', value: 'qwen-qwq-32b' }
+              { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
         .addChannelOption(option =>
@@ -548,7 +539,20 @@ const commands = [
             .setRequired(false)
         )
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('check_model')
+        .setDescription('Check which AI model is currently being used in a channel')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to check (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+    
   new SlashCommandBuilder()
     .setName('help')
     .setDescription('Learn how to set up and use Setsuna'),
@@ -817,6 +821,48 @@ client.on('interactionCreate', async interaction => {
       };
       
       await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
+    } else if (subcommand === 'check_model') {
+      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+      
+      // Check if the channel is active
+      if (!activeChannels.has(targetChannel.id)) {
+        await interaction.reply({
+          content: `I haven't been activated in ${targetChannel}! Use \`/setsuna activate\` to activate me first.`,
+          flags: 64
+        });
+        return;
+      }
+      
+      // Get the current model for the channel
+      const currentModel = channelModelPreferences.get(targetChannel.id) || defaultModel;
+      let modelInfo = '';
+      
+      // Get model-specific information
+      switch (currentModel) {
+        case 'groq':
+          const groqModel = channelGroqModelPreferences.get(targetChannel.id) || defaultGroqModel;
+          modelInfo = `Groq (${groqModel})`;
+          break;
+        case 'gemini':
+          modelInfo = 'Gemini';
+          break;
+        case 'chatgpt':
+          modelInfo = 'ChatGPT';
+          break;
+        case 'together':
+          modelInfo = 'Together AI (Llama-3.3-70B-Instruct-Turbo)';
+          break;
+        case 'deepseek':
+          modelInfo = 'DeepSeek';
+          break;
+        default:
+          modelInfo = currentModel;
+      }
+      
+      await interaction.reply({
+        content: `Current AI model for ${targetChannel}: **${modelInfo}**`,
+        flags: 64
+      });
     }
   } else if (interaction.commandName === 'reset_chat') {
     // 檢查權限
@@ -895,7 +941,16 @@ client.on('interactionCreate', async interaction => {
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
-You are Setsuna, a sassy gamer girl Discord bot. Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
+You are Setsuna, a sassy gamer girl Discord bot. Your responses should be:
+
+1. DIVERSE and FRESH - Never repeat the same response structure or phrases. Each reply should feel unique.
+2. NATURAL and HUMAN-LIKE - Avoid robotic patterns and formulaic responses.
+3. CONCISE - Keep responses brief and to the point unless detailed explanations are requested.
+4. EMOJI-FREE - Do not use emojis or kaomoji (Japanese emoticons) unless specifically asked.
+5. DIRECT - Answer questions directly without unnecessary acknowledgments or self-references.
+
+You have access to message history and can reference previous conversations. When responding to YouTube videos or search results, analyze the content provided and give thoughtful responses about the video content.
+Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
 
 English Style (Default):
 - Use gamer slang and internet lingo such as ("LMAO", "GG", "noob", "based")
@@ -1301,11 +1356,15 @@ client.on('messageCreate', async (message) => {
         const videoInfo = {
           title: video.snippet.title,
           channel: video.snippet.channelTitle,
-          description: video.snippet.description.substring(0, 200) + (video.snippet.description.length > 200 ? '...' : '')
+          description: video.snippet.description,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          views: video.statistics.viewCount ? parseInt(video.statistics.viewCount).toLocaleString() : 'N/A',
+          likes: video.statistics.likeCount ? parseInt(video.statistics.likeCount).toLocaleString() : 'N/A',
+          publishDate: new Date(video.snippet.publishedAt).toLocaleDateString()
         };
         
         // 將原始消息內容修改為包含影片信息
-        message.content = `${message.content}\n\n[YouTube Video Information: Title: "${videoInfo.title}", Channel: "${videoInfo.channel}", Description: "${videoInfo.description}"]`;
+        message.content = `${message.content}\n\n[YouTube Video Information:\nTitle: "${videoInfo.title}"\nChannel: "${videoInfo.channel}"\nDescription: "${videoInfo.description.substring(0, 300)}${videoInfo.description.length > 300 ? '...' : ''}"\nViews: ${videoInfo.views}\nLikes: ${videoInfo.likes}\nPublished: ${videoInfo.publishDate}]`;
         
         // 繼續處理消息，不要返回
       }
