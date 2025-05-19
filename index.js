@@ -955,6 +955,11 @@ IMPORTANT RULES:
 - ALWAYS maintain your character as Setsuna in every response
 - PAY ATTENTION to who is speaking in the conversation. Different messages may come from different users in the same channel. Always check the username of who sent each message and respond accordingly.
 - When responding to a message that mentions another user, be aware of the conversation context and who is talking to whom.
+- NEVER use HTML tags in your responses (like <br>, <font>, <b>, <i>, etc.)
+- NEVER use any special formatting codes or markup in your responses
+- ALWAYS use plain text only in your responses
+- When you see YouTube video information in a message, make sure to reference the video content in your response. Pay attention to the video title, channel, and description.
+- Always check for [Message sent by: username] tags to identify who is speaking
 
 You have access to message history and can reference previous conversations. When responding to YouTube videos or search results, analyze the content provided and give thoughtful responses about the video content.
 Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
@@ -1449,7 +1454,8 @@ client.on('messageCreate', async (message) => {
       if (repliedMessage) {
         isReply = true;
         const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
-        replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
+        // 更明確地標註回覆對象
+        replyContext = `[${message.author.username} 正在回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
         console.log(`Detected reply to message: ${repliedMessage.content}`);
       }
     } catch (error) {
