@@ -1336,7 +1336,7 @@ async function generateImageWithGemini(prompt) {
   while (keysTriedCount < GEMINI_API_KEYS.length) {
     try {
       // 動態導入 Gemini API
-      const { GoogleGenerativeAI, Modality } = await import('@google/generative-ai');
+      const { GoogleGenerativeAI, Modality } = await import('@google/genai');
       
       // 初始化 Gemini API
       const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
