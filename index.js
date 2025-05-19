@@ -1498,19 +1498,17 @@ client.on('messageCreate', async (message) => {
   // If this is a reply, modify the current message content to include context
   if (isReply) {
     // 修改：直接修改原始消息內容，確保包含回覆上下文
-    message.content = replyContext + message.content;
+    //message.content = replyContext + message.content;
     
     // 更新消息歷史中的當前消息
     for (let i = 0; i < messageHistory.length; i++) {
-      // 使用作者名稱和角色來識別當前消息，而不是比對內容
-      if (messageHistory[i].role === 'user' && messageHistory[i].author === message.author.username) {
-        // 檢查是否為最新的消息（通常是歷史記錄中的最後一條）
-        if (i === messageHistory.length - 1 || 
-            (i < messageHistory.length - 1 && messageHistory[i+1].author !== message.author.username)) {
-          messageHistory[i].content = message.content;
-          console.log(`Updated message history with reply context: ${message.content}`);
-          break;
-        }
+
+      if (messageHistory[i].role === 'user' && messageHistory[i].content === message.content) {
+      
+      messageHistory[i].content = replyContext + message.content;
+      
+      break;
+        
       }
     }
   }
