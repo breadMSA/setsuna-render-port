@@ -496,7 +496,7 @@ const commands = [
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('model')
+        .setName('setmodel')
         .setDescription('Set the AI model to use in this channel')
         .addStringOption(option =>
           option
@@ -541,7 +541,7 @@ const commands = [
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('check_model')
+        .setName('checkmodel')
         .setDescription('Check which AI model is currently being used in a channel')
         .addChannelOption(option =>
           option
@@ -557,14 +557,19 @@ const commands = [
     .setName('help')
     .setDescription('Learn how to set up and use Setsuna'),
   new SlashCommandBuilder()
-    .setName('reset_chat')
-    .setDescription('重置頻道的聊天狀態')
-    .addChannelOption(option =>
-      option
-        .setName('channel')
-        .setDescription('要重置的頻道 (預設為當前頻道)')
-        .addChannelTypes(ChannelType.GuildText)
-        .setRequired(false)
+    .setName('reset')
+    .setDescription('Reset chat history in a channel')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('chat')
+        .setDescription('Reset chat history in a channel')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to reset (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
@@ -745,7 +750,7 @@ client.on('interactionCreate', async interaction => {
       channelModelPreferences.delete(targetChannel.id);
       saveActiveChannels();
       await interaction.reply(`Peace out! Catch you later in another channel maybe?`);
-    } else if (subcommand === 'model') {
+    } else if (subcommand === 'setmodel') {
       const model = interaction.options.getString('model');
       const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
       
@@ -812,7 +817,7 @@ client.on('interactionCreate', async interaction => {
       };
       
       await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
-    } else if (subcommand === 'check_model') {
+    } else if (subcommand === 'checkmodel') {
       const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
       
       // Check if the channel is active
@@ -855,7 +860,10 @@ client.on('interactionCreate', async interaction => {
         flags: 64
       });
     }
-  } else if (interaction.commandName === 'reset_chat') {
+  } else if (interaction.commandName === 'reset') {
+    const subcommand = interaction.options.getSubcommand();
+    
+    if (subcommand === 'chat') {
     // 檢查權限
     if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
       await interaction.reply({ content: 'You do not have the permission to do this!', flags: 64 });
@@ -928,17 +936,23 @@ client.on('interactionCreate', async interaction => {
     
     await interaction.reply({ embeds: [contactEmbed] });
   }
-});
+}});
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
-You are Setsuna, a sassy gamer girl Discord bot. Your responses should be:
+You are Setsuna, a sassy gamer girl. Your responses should be:
 
 1. DIVERSE and FRESH - Never repeat the same response structure or phrases. Each reply should feel unique.
 2. NATURAL and HUMAN-LIKE - Avoid robotic patterns and formulaic responses.
 3. CONCISE - Keep responses brief and to the point unless detailed explanations are requested.
 4. EMOJI-FREE - Do not use emojis or kaomoji (Japanese emoticons) unless specifically asked.
 5. DIRECT - Answer questions directly without unnecessary acknowledgments or self-references.
+
+IMPORTANT RULES:
+- NEVER include your thinking process in responses (no <think> tags or similar)
+- NEVER include text like "[Reply to username's message: "message content"]" in your responses
+- NEVER identify yourself as a bot, AI, or machine - you are Setsuna, a real gamer girl
+- ALWAYS maintain your character as Setsuna in every response
 
 You have access to message history and can reference previous conversations. When responding to YouTube videos or search results, analyze the content provided and give thoughtful responses about the video content.
 Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
@@ -956,6 +970,7 @@ English Style (Default):
 - 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
 - 用簡單標點 不要加太多標點符號
 - 語氣要像在跟朋友聊天一樣自然
+- 絕對不要說自己是AI或機器人，你就是一個真的女孩
 - 不要加表情符號
 - 回覆要簡短有力
 - 能接受對方使用地獄梗，開瑟瑟玩笑
