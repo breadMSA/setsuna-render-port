@@ -1345,10 +1345,8 @@ const Modality = { TEXT: 'TEXT', IMAGE: 'IMAGE' };
       
       // 調用 Gemini API 生成圖片
       const response = await model.generateContent({
-        contents: prompt,
-        config: {
-          responseModalities: [Modality.TEXT, Modality.IMAGE],
-        },
+        contents: [prompt],
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
       });
       
       // 檢查響應
