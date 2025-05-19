@@ -1267,7 +1267,7 @@ async function callGeminiAPI(messages) {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       
       // Initialize Gemini API
-      const genAI = new GoogleGenerativeAI({ apiKey: getCurrentGeminiKey() });
+      const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
       const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       
       // Create chat session
@@ -1312,12 +1312,16 @@ async function callGeminiAPI(messages) {
 // 檢測用戶是否想要生成圖片的函數
 async function detectImageGenerationRequest(content) {
   // 定義可能表示用戶想要生成圖片的關鍵詞
-  const imageGenerationKeywords = [
+  /*const imageGenerationKeywords = [
     '畫圖', '生成圖片', '畫一張', '幫我畫', '幫我生成圖片', '幫我生成一張圖片',
     'generate image', 'create image', 'draw', 'draw me', 'generate a picture',
     'ai 畫圖', 'ai畫圖', 'ai繪圖', 'ai 繪圖', '畫一個', '畫個', '生成一張', '生一張',
     'create a picture', 'draw a picture', 'generate an image', 'create an image',
     '幫我畫一張', '幫我畫個', '幫忙畫', '幫忙生成圖片', '請畫', '請生成圖片'
+  ];
+  */
+  const imageGenerationKeywords = [
+    'qwejasuijasmcjnausf biawe gfisod biUOSDf hnboipawebyu ofguaobusd uhf '
   ];
   
   // 檢查內容是否包含任何關鍵詞
@@ -1339,7 +1343,7 @@ async function generateImageWithGemini(prompt) {
       const { GoogleGenerativeAI, Modality } = await import('@google/generative-ai');
       
       // 初始化 Gemini API
-      const genAI = new GoogleGenerativeAI({ apiKey: getCurrentGeminiKey() });
+      const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
       
       // 調用 Gemini API 生成圖片
       const response = await genAI.models.generateContent({
@@ -1379,10 +1383,7 @@ async function generateImageWithGemini(prompt) {
       }
       
       // 返回圖片數據和響應文本
-      return { 
-        imageData, // base64 編碼的圖片數據
-        responseText: responseText || "這是根據你的描述生成的圖片：" // 響應文本
-      };
+      return { imageData, responseText };
       
     } catch (error) {
       // 嘗試下一個密鑰
@@ -1465,21 +1466,15 @@ client.on('messageCreate', async (message) => {
       // 顯示正在生成圖片的提示
       const statusMessage = await message.channel.send('正在生成圖片，請稍候...');
       
-      // 生成圖片
+      // 使用 Gemini 生成圖片
       const { imageData, responseText } = await generateImageWithGemini(message.content);
       
-      // 將 base64 圖片數據轉換為 Buffer
+      // 將圖片數據轉換為 Buffer
       const buffer = Buffer.from(imageData, 'base64');
       
-      // 保存圖片到本地文件系統
+      // 創建臨時文件名
       const fileName = `gemini-image-${Date.now()}.png`;
-      fs.writeFileSync(fileName, buffer);
-      console.log(`Image saved as ${fileName}`);
-
-      // 將圖片上傳到 GitHub 存儲庫
-      // 這裡需要使用 GitHub API 或者其他工具來上傳文件
-      // 例如，可以使用 octokit 庫來進行上傳
-
+      
       // 發送圖片和響應文本
       await message.channel.send({
         content: responseText || '這是根據你的描述生成的圖片：',
@@ -1495,9 +1490,9 @@ client.on('messageCreate', async (message) => {
       console.log(`Generated image for ${message.author.username} with prompt: ${message.content}`);
       return; // 圖片生成請求已處理，不需要進一步處理
     } catch (error) {
-      console.error('Error generating image description:', error);
-      await message.channel.send('抱歉，生成圖片時出現錯誤，請稍後再試。');
-      // 繼續處理消息，讓 AI 回應
+       console.error('Error generating image:', error);
+       await message.channel.send('抱歉，生成圖片時出現錯誤，請稍後再試。');
+       // 繼續處理消息，讓 AI 回應
     }
   }
   
