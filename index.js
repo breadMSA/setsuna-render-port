@@ -799,6 +799,8 @@ client.on('interactionCreate', async interaction => {
         const groqModel = interaction.options.getString('groq_model');
         if (groqModel) {
           channelGroqModelPreferences.set(targetChannel.id, groqModel);
+          // 立即保存頻道配置到 JSON 文件
+          saveActiveChannels();
           await interaction.reply(`Alright, I will be using Groq with model ${groqModel} in ${targetChannel}!`);
           return;
         } else {
@@ -806,6 +808,9 @@ client.on('interactionCreate', async interaction => {
           channelGroqModelPreferences.set(targetChannel.id, defaultGroqModel);
         }
       }
+      
+      // 立即保存頻道配置到 JSON 文件
+      saveActiveChannels();
       
       // Reply with confirmation
       const modelNames = {
@@ -1304,6 +1309,91 @@ async function callGeminiAPI(messages) {
   throw lastError || new Error('All Gemini API keys failed');
 }
 
+// 檢測用戶是否想要生成圖片的函數
+async function detectImageGenerationRequest(content) {
+  // 定義可能表示用戶想要生成圖片的關鍵詞
+  const imageGenerationKeywords = [
+    '畫圖', '生成圖片', '畫一張', '幫我畫', '幫我生成圖片', '幫我生成一張圖片',
+    'generate image', 'create image', 'draw', 'draw me', 'generate a picture',
+    'ai 畫圖', 'ai畫圖', 'ai繪圖', 'ai 繪圖', '畫一個', '畫個', '生成一張',
+    'create a picture', 'draw a picture', 'generate an image', 'create an image',
+    '幫我畫一張', '幫我畫個', '幫忙畫', '幫忙生成圖片', '請畫', '請生成圖片'
+  ];
+  
+  // 檢查內容是否包含任何關鍵詞
+  return imageGenerationKeywords.some(keyword => 
+    content.toLowerCase().includes(keyword.toLowerCase())
+  );
+}
+
+// 使用 Gemini API 生成圖片的函數
+async function generateImageWithGemini(prompt) {
+  // 嘗試所有可用的 Gemini API 密鑰，直到有一個成功
+  let lastError = null;
+  const initialKeyIndex = currentGeminiKeyIndex;
+  let keysTriedCount = 0;
+  
+  while (keysTriedCount < GEMINI_API_KEYS.length) {
+    try {
+      // 動態導入 Gemini API
+      const { GoogleGenerativeAI, Modality } = await import('@google/generative-ai');
+      
+      // 初始化 Gemini API
+      const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
+      
+      // 調用 Gemini API 生成圖片
+      const response = await genAI.models.generateContent({
+        model: "gemini-2.0-flash-preview-image-generation",
+        contents: prompt,
+        config: {
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
+        },
+      });
+      
+      // 檢查響應
+      if (!response || !response.candidates || !response.candidates[0] || !response.candidates[0].content) {
+        // 嘗試下一個密鑰
+        lastError = new Error('Empty response from Gemini API');
+        getNextGeminiKey();
+        keysTriedCount++;
+        console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} returned empty response for image generation`);
+        continue;
+      }
+      
+      // 提取圖片數據
+      const parts = response.candidates[0].content.parts;
+      let imageData = null;
+      let responseText = null;
+      
+      for (const part of parts) {
+        if (part.text) {
+          responseText = part.text;
+        } else if (part.inlineData) {
+          imageData = part.inlineData.data;
+        }
+      }
+      
+      // 如果沒有圖片數據，拋出錯誤
+      if (!imageData) {
+        throw new Error('No image data in response');
+      }
+      
+      // 返回圖片數據和響應文本
+      return { imageData, responseText };
+      
+    } catch (error) {
+      // 嘗試下一個密鑰
+      lastError = error;
+      getNextGeminiKey();
+      keysTriedCount++;
+      console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} error for image generation: ${error.message}`);
+    }
+  }
+  
+  // 如果所有密鑰都失敗，拋出錯誤
+  throw lastError || new Error('All Gemini API keys failed for image generation');
+}
+
 async function callChatGPTAPI(messages) {
   // Try all available ChatGPT keys until one works
   let lastError = null;
@@ -1364,6 +1454,40 @@ client.on('messageCreate', async (message) => {
 
   // Show typing indicator immediately
   await message.channel.sendTyping();
+  
+  // 檢查用戶是否想要生成圖片
+  const isImageGenerationRequest = await detectImageGenerationRequest(message.content);
+  if (isImageGenerationRequest && GEMINI_API_KEYS.length > 0) {
+    try {
+      // 顯示正在生成圖片的提示
+      await message.channel.send('正在生成圖片，請稍候...');
+      
+      // 生成圖片
+      const { imageData, responseText } = await generateImageWithGemini(message.content);
+      
+      // 將圖片數據轉換為 Buffer
+      const buffer = Buffer.from(imageData, 'base64');
+      
+      // 創建臨時文件名
+      const fileName = `gemini-image-${Date.now()}.png`;
+      
+      // 發送圖片和響應文本
+      await message.channel.send({
+        content: responseText || '這是根據你的描述生成的圖片：',
+        files: [{
+          attachment: buffer,
+          name: fileName
+        }]
+      });
+      
+      console.log(`Generated image for ${message.author.username} with prompt: ${message.content}`);
+      return; // 圖片生成請求已處理，不需要進一步處理
+    } catch (error) {
+      console.error('Error generating image:', error);
+      await message.channel.send('抱歉，生成圖片時出現錯誤，請稍後再試。');
+      // 繼續處理消息，讓 AI 回應
+    }
+  }
   
   // 檢查消息是否包含圖片附件
   let imageAttachmentInfo = "";
