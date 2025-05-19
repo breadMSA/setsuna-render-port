@@ -1412,61 +1412,77 @@ client.on('messageCreate', async (message) => {
     }
   }
   
-  // Check if the message is a reply to another message
-  let replyContext = "";
-  let isReply = false;
-  
-  if (message.reference && message.reference.messageId) {
-    try {
-      // Fetch the message being replied to
-      const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
-      if (repliedMessage) {
-        isReply = true;
-        const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
-        replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
-        console.log(`Detected reply to message: ${repliedMessage.content}`);
-      }
-    } catch (error) {
-      console.error('Error fetching replied message:', error);
-    }
-  }
+// Check if the message is a reply to another message
 
-  // Get message history (last 50 messages)
-  const messages = await message.channel.messages.fetch({ limit: 50 });
-  const messageHistory = Array.from(messages.values())
-    .reverse()
-    .map(msg => {
-      // 為非機器人訊息添加發送者訊息
-      let content = msg.content;
-      if (!msg.author.bot && !content.includes('[Message sent by:')) {
-        content = `${content}\n\n[Message sent by: ${msg.author.username}]`;
-      }
-      return {
-        role: msg.author.bot ? 'assistant' : 'user',
-        content: content,
-        author: msg.author.username
-      };
-    });
-  
-  // If this is a reply, modify the current message content to include context
-  if (isReply) {
-    // 修改：直接修改原始消息內容，確保包含回覆上下文
-    message.content = replyContext + message.content;
-    
-    // 更新消息歷史中的當前消息
-    for (let i = 0; i < messageHistory.length; i++) {
-      // 使用作者名稱和角色來識別當前消息，而不是比對內容
-      if (messageHistory[i].role === 'user' && messageHistory[i].author === message.author.username) {
-        // 檢查是否為最新的消息（通常是歷史記錄中的最後一條）
-        if (i === messageHistory.length - 1 || 
-            (i < messageHistory.length - 1 && messageHistory[i+1].author !== message.author.username)) {
-          messageHistory[i].content = message.content;
-          console.log(`Updated message history with reply context: ${message.content}`);
-          break;
-        }
-      }
-    }
-  }
+let replyContext = "";
+
+let isReply = false;
+
+if (message.reference && message.reference.messageId) {
+
+try {
+
+// Fetch the message being replied to
+
+const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
+
+if (repliedMessage) {
+
+isReply = true;
+
+const repliedAuthor = repliedMessage.author.bot ? "Setsuna" : repliedMessage.author.username;
+
+replyContext = `[回覆 ${repliedAuthor} 的訊息: "${repliedMessage.content}"] `;
+
+console.log(`Detected reply to message: ${repliedMessage.content}`);
+
+}
+
+} catch (error) {
+
+console.error('Error fetching replied message:', error);
+
+}
+
+}
+
+// Get message history (last 50 messages)
+
+const messages = await message.channel.messages.fetch({ limit: 50 });
+
+const messageHistory = Array.from(messages.values())
+
+.reverse()
+
+.map(msg => ({
+
+role: msg.author.bot ? 'assistant' : 'user',
+
+content: msg.content,
+
+author: msg.author.username
+
+}));
+
+// If this is a reply, modify the current message content to include context
+
+if (isReply) {
+
+// Find the current message in the history and add reply context
+
+for (let i = 0; i < messageHistory.length; i++) {
+
+if (messageHistory[i].role === 'user' && messageHistory[i].content === message.content) {
+
+messageHistory[i].content = replyContext + message.content;
+
+break;
+
+}
+
+}
+
+}
   
   // Update channel's message history
   channelConfig.messageHistory = messageHistory;
