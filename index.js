@@ -691,15 +691,6 @@ client.on('interactionCreate', async interaction => {
       // Get optional model parameter
       const model = interaction.options.getString('model') || defaultModel;
       
-      // Check if the channel is active
-      if (!activeChannels.has(targetChannel.id)) {
-        await interaction.reply({
-          content: `I haven't been activated in ${targetChannel} ! Use \`/setsuna activate\` to activate me first.`,
-          flags: 64
-        });
-        return;
-      }
-      
       // Check if the selected model has API keys
       let hasKeys = false;
       switch (model) {
