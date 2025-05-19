@@ -1336,17 +1336,18 @@ async function generateImageWithGemini(prompt) {
   while (keysTriedCount < GEMINI_API_KEYS.length) {
     try {
       // 動態導入 Gemini API
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-const Modality = { TEXT: 'TEXT', IMAGE: 'IMAGE' };
+      const { GoogleGenerativeAI, Modality } = await import('@google/generative-ai');
       
       // 初始化 Gemini API
       const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-preview-image-generation" });
       
       // 調用 Gemini API 生成圖片
-      const response = await model.generateContent({
-        contents: [prompt],
-        responseModalities: [Modality.TEXT, Modality.IMAGE],
+      const response = await genAI.models.generateContent({
+        model: "gemini-2.0-flash-preview-image-generation",
+        contents: prompt,
+        config: {
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
+        },
       });
       
       // 檢查響應
@@ -1359,7 +1360,7 @@ const Modality = { TEXT: 'TEXT', IMAGE: 'IMAGE' };
         continue;
       }
       
-      // 提取圖片數據和文本
+      // 提取圖片數據
       const parts = response.candidates[0].content.parts;
       let imageData = null;
       let responseText = null;
@@ -1464,52 +1465,26 @@ client.on('messageCreate', async (message) => {
       // 顯示正在生成圖片的提示
       const statusMessage = await message.channel.send('正在生成圖片，請稍候...');
       
-      // 生成圖片描述
+      // 生成圖片
       const { imageData, responseText } = await generateImageWithGemini(message.content);
       
-      // 使用 DALL-E 或其他圖片生成服務生成圖片
-      // 由於 Gemini 1.5 Flash 不直接生成圖片，我們使用 OpenAI 的 DALL-E 來生成
-      if (OPENAI_API_KEYS.length > 0) {
-        try {
-          const { Configuration, OpenAIApi } = await import('openai');
-          const configuration = new Configuration({
-            apiKey: getCurrentOpenAIKey(),
-          });
-          const openai = new OpenAIApi(configuration);
-          
-          // 使用 DALL-E 生成圖片
-          const response = await openai.createImage({
-            prompt: imageData, // 使用 Gemini 生成的描述作為 DALL-E 的提示
-            n: 1,
-            size: "1024x1024",
-          });
-          
-          // 獲取圖片 URL
-          const imageUrl = response.data.data[0].url;
-          
-          // 發送圖片和響應文本
-          await message.channel.send({
-            content: responseText || '這是根據你的描述生成的圖片：',
-            files: [{
-              attachment: imageUrl,
-              name: `dalle-image-${Date.now()}.png`
-            }]
-          });
-          
-          // 刪除狀態消息
-          await statusMessage.delete().catch(console.error);
-          
-          console.log(`Generated image for ${message.author.username} with prompt: ${message.content}`);
-          return; // 圖片生成請求已處理，不需要進一步處理
-        } catch (openaiError) {
-          console.error('Error generating image with DALL-E:', openaiError);
-          // 如果 DALL-E 失敗，繼續處理消息
-          await statusMessage.edit('抱歉，生成圖片時出現錯誤，但我仍然可以回答你的問題。');
-        }
-      } else {
-        // 如果沒有 OpenAI API 密鑰，只發送文本回應
-        await statusMessage.edit(`抱歉，無法生成圖片，但這是我對你描述的理解：\n\n${imageData}`);
-      }
+      // 將 base64 圖片數據轉換為 Buffer
+      const buffer = Buffer.from(imageData, 'base64');
+      
+      // 發送圖片和響應文本
+      await message.channel.send({
+        content: responseText || '這是根據你的描述生成的圖片：',
+        files: [{
+          attachment: buffer,
+          name: `gemini-image-${Date.now()}.png`
+        }]
+      });
+      
+      // 刪除狀態消息
+      await statusMessage.delete().catch(console.error);
+      
+      console.log(`Generated image for ${message.author.username} with prompt: ${message.content}`);
+      return; // 圖片生成請求已處理，不需要進一步處理
     } catch (error) {
       console.error('Error generating image description:', error);
       await message.channel.send('抱歉，生成圖片時出現錯誤，請稍後再試。');
