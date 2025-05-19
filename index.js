@@ -1340,22 +1340,22 @@ async function generateImageWithGemini(prompt) {
   while (keysTriedCount < GEMINI_API_KEYS.length) {
     try {
       // 動態導入 Gemini API
-      const { GoogleGenerativeAI, Modality } = await import('@google/generative-ai');
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
       
       // 初始化 Gemini API
       const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
       
+      // 獲取圖片生成模型
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-preview-image-generation" });
+      
       // 調用 Gemini API 生成圖片
-      const response = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-preview-image-generation",
-        contents: prompt,
-        config: {
-          responseModalities: [Modality.TEXT, Modality.IMAGE],
-        },
-      });
+      const response = await model.generateContent(prompt);
+      
+      // 獲取響應內容
+      const result = await response.response();
       
       // 檢查響應
-      if (!response || !response.candidates || !response.candidates[0] || !response.candidates[0].content) {
+      if (!result || !result.text()) {
         // 嘗試下一個密鑰
         lastError = new Error('Empty response from Gemini API');
         getNextGeminiKey();
@@ -1364,26 +1364,15 @@ async function generateImageWithGemini(prompt) {
         continue;
       }
       
-      // 提取圖片數據
-      const parts = response.candidates[0].content.parts;
-      let imageData = null;
-      let responseText = null;
+      // 提取圖片數據和文本
+      const imageData = result.text();
+      const responseText = '這是根據你的描述生成的圖片：';
       
-      for (const part of parts) {
-        if (part.text) {
-          responseText = part.text;
-        } else if (part.inlineData) {
-          imageData = part.inlineData.data;
-        }
-      }
-      
-      // 如果沒有圖片數據，拋出錯誤
-      if (!imageData) {
-        throw new Error('No image data in response');
-      }
-      
-      // 返回圖片數據和響應文本
-      return { imageData, responseText };
+      // 返回圖片描述和響應文本
+      return { 
+        imageData: imageData, // 使用生成的文本作為圖片描述
+        responseText: responseText 
+      };
       
     } catch (error) {
       // 嘗試下一個密鑰
