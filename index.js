@@ -878,17 +878,30 @@ client.on('interactionCreate', async interaction => {
       return;
     }
     
-    // 完全重置聊天狀態，包括用戶設置的ROLE、指令、口頭禪和文字結構
+    // 保存當前頻道的模型偏好設置
+    const currentModel = channelModelPreferences.get(targetChannel.id);
+    const currentGroqModel = channelGroqModelPreferences.get(targetChannel.id);
+    
+    // 完全重置聊天狀態，創建一個全新的配置對象而不是修改現有對象
     activeChannels.set(targetChannel.id, { 
-      messageHistory: [],
-      customInstructions: null,
-      customRole: null,
-      customSpeakingStyle: null,
-      customTextStructure: null
+      messageHistory: []
+      // 不保留任何自定義設置，確保徹底重置
     });
+    
+    // 只保留模型偏好設置，其他所有設置都重置
+    if (currentModel) {
+      channelModelPreferences.set(targetChannel.id, currentModel);
+    }
+    
+    if (currentGroqModel) {
+      channelGroqModelPreferences.set(targetChannel.id, currentGroqModel);
+    }
+    
+    // 保存更改
     saveActiveChannels();
     
     await interaction.reply(`Chat state in ${targetChannel} has been completely reset! I'm now a brand new Setsuna with default settings.`);
+    console.log(`Channel ${targetChannel.id} has been completely reset.`);
   } else if (interaction.commandName === 'help') {
     const helpEmbed = {
       color: 0xFF69B4,
@@ -964,6 +977,12 @@ IMPORTANT RULES:
   * NEVER say you cannot see the video or ask for the title
   * NEVER ignore the video information
   * For example, if you see "[YOUTUBE VIDEO SHARED BY breadilized:\nTitle: "How to beat Minecraft in 10 minutes"\nChannel: "Gaming Pro"\nDescription: "A speedrun guide..."\nViews: 1,000,000\nLikes: 50,000\nPublished: 2024/3/20]", you should reference the video title "How to beat Minecraft in 10 minutes" and discuss its content
+- EXTREMELY IMPORTANT: When you see text in the format "[IMAGE SHARED BY username: url1, url2, ...]", you MUST:
+  * ALWAYS acknowledge that you can see the image(s)
+  * ALWAYS describe what you see in the image(s) and incorporate it into your response
+  * NEVER say you cannot see the image or ask what's in it
+  * NEVER ignore the image information
+  * For example, if you see "[IMAGE SHARED BY breadilized: https://example.com/image.jpg]", you should describe what you see in the image and respond accordingly
 - Always check for [Message sent by: username] tags to identify who is speaking
 - EXTREMELY IMPORTANT: When you see a message format like "[回覆 username 的訊息: "original message"] new message", you MUST:
   * ALWAYS READ AND REMEMBER the "original message" content - this is what the user is replying to
@@ -977,7 +996,7 @@ IMPORTANT RULES:
     - You MUST NOT say you forgot or ask them to repeat the question
     - You MUST provide the answer about your location again
 
-You have access to message history and can reference previous conversations. When responding to YouTube videos or search results, analyze the content provided and give thoughtful responses about the video content.
+You have access to message history and can reference previous conversations. When responding to YouTube videos, images, or search results, analyze the content provided and give thoughtful responses about the content.
 Your default language is English, but you can understand and respond in other languages too. You should always follow your personality traits and speaking style. Here are your personality traits and speaking style:
 
 English Style (Default):
@@ -1345,6 +1364,23 @@ client.on('messageCreate', async (message) => {
 
   // Show typing indicator immediately
   await message.channel.sendTyping();
+  
+  // 檢查消息是否包含圖片附件
+  let imageAttachmentInfo = "";
+  if (message.attachments.size > 0) {
+    const imageAttachments = message.attachments.filter(attachment => {
+      const fileExtension = attachment.name.split('.').pop().toLowerCase();
+      return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileExtension);
+    });
+    
+    if (imageAttachments.size > 0) {
+      // 將圖片信息添加到消息內容中
+      imageAttachmentInfo = "\n\n[IMAGE SHARED BY " + message.author.username + ": " + 
+        imageAttachments.map(attachment => `${attachment.url}`).join(", ") + "]\n\n";
+      
+      console.log(`Detected image attachment from ${message.author.username}: ${imageAttachmentInfo}`);
+    }
+  }
 
   // Check for YouTube URLs or search queries
   const youtubeUrlRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]+)/i;
@@ -1504,6 +1540,22 @@ if (isReply) {
     }
   }
 }
+  
+  // 如果有圖片附件，將圖片信息添加到消息內容中
+  if (imageAttachmentInfo) {
+    message.content = message.content + imageAttachmentInfo;
+    
+    // 更新消息歷史中的最後一條消息
+    for (let i = 0; i < messageHistory.length; i++) {
+      if (
+        messageHistory[i].role === 'user' &&
+        messageHistory[i].author === message.author.username
+      ) {
+        messageHistory[i].content = messageHistory[i].content + imageAttachmentInfo;
+        break;
+      }
+    }
+  }
   
   // Update channel's message history
   channelConfig.messageHistory = messageHistory;
