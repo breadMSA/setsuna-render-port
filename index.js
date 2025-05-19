@@ -1267,7 +1267,7 @@ async function callGeminiAPI(messages) {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       
       // Initialize Gemini API
-      const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
+      const genAI = new GoogleGenerativeAI({ apiKey: getCurrentGeminiKey() });
       const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       
       // Create chat session
@@ -1339,7 +1339,7 @@ async function generateImageWithGemini(prompt) {
       const { GoogleGenerativeAI, Modality } = await import('@google/generative-ai');
       
       // 初始化 Gemini API
-      const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
+      const genAI = new GoogleGenerativeAI({ apiKey: getCurrentGeminiKey() });
       
       // 調用 Gemini API 生成圖片
       const response = await genAI.models.generateContent({
