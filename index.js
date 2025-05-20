@@ -1330,219 +1330,46 @@ async function detectImageGenerationRequest(content) {
   );
 }
 
-// 使用 Python 腳本和 Gemini API 生成圖片的函數
+// 使用 genimg.mjs 生成圖片的函數
 async function generateImageWithGemini(prompt) {
-  // 導入必要的模塊
-  const { spawn } = require('child_process');
-  const { exec } = require('child_process');
-  const { promisify } = require('util');
-  const execPromise = promisify(exec);
-  const path = require('path');
-  const fs = require('fs');
-  const os = require('os');
-  
-  // 嘗試所有可用的 Gemini API 密鑰，直到有一個成功
-  let lastError = null;
-  const initialKeyIndex = currentGeminiKeyIndex;
-  let keysTriedCount = 0;
-  
-  // 獲取系統信息用於調試
-  console.log(`Operating System: ${os.platform()} ${os.release()}`);
-  console.log(`Node.js Version: ${process.version}`);
-  console.log(`Current Directory: ${process.cwd()}`);
-  console.log(`__dirname: ${__dirname}`);
-  
-  // 確定腳本路徑，使用適合當前操作系統的路徑分隔符
-  const scriptPath = path.join(__dirname, 'generate_image.py');
-  console.log(`Script Path: ${scriptPath}`);
-  
-  // 檢查腳本是否存在
   try {
-    if (fs.existsSync(scriptPath)) {
-      console.log(`Python script found at: ${scriptPath}`);
-      // 顯示腳本權限
-      try {
-        const stats = fs.statSync(scriptPath);
-        console.log(`Script permissions: ${stats.mode.toString(8)}`);
-      } catch (err) {
-        console.error(`Error checking script permissions: ${err.message}`);
-      }
-    } else {
-      console.error(`Python script not found at: ${scriptPath}`);
-      // 嘗試列出目錄內容
-      try {
-        const dirContents = fs.readdirSync(__dirname);
-        console.log(`Directory contents: ${dirContents.join(', ')}`);
-      } catch (err) {
-        console.error(`Error listing directory: ${err.message}`);
-      }
-      throw new Error(`Python script not found at: ${scriptPath}`);
+    // 使用 child_process 執行 genimg.mjs
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execPromise = promisify(exec);
+    
+    // 構建命令，將 prompt 作為參數傳遞給 genimg.mjs
+    // 使用雙引號包裹 prompt，以處理包含空格和特殊字符的情況
+    const command = `node "${__dirname}/genimg.mjs" "${prompt.replace(/"/g, '\"')}"`;  
+    
+    console.log(`Executing command: ${command}`);
+    
+    // 執行命令並獲取輸出
+    const { stdout, stderr } = await execPromise(command);
+    
+    if (stderr) {
+      console.error(`genimg.mjs stderr: ${stderr}`);
     }
-  } catch (err) {
-    console.error(`Error checking script existence: ${err.message}`);
-    throw err;
-  }
-  
-  // 可能的Python命令列表 - 為Railway環境添加更多選項，包括虛擬環境路徑
-  const pythonCommands = [
-    // 虛擬環境路徑 (Railway環境)
-    '.venv/bin/python', './.venv/bin/python',
-    '/app/.venv/bin/python',
-    // 標準路徑
-    'python3', 'python', 'py',
-    '/usr/bin/python3', '/usr/bin/python',
-    '/usr/local/bin/python3', '/usr/local/bin/python'
-  ];
-  
-  // 檢查Python環境
-  try {
-    const { stdout: whichPython } = await execPromise('which python || which python3 || echo "Not found"');
-    console.log(`Python location: ${whichPython.trim()}`);
-  } catch (err) {
-    console.log(`Error finding Python: ${err.message}`);
-  }
-  
-  while (keysTriedCount < GEMINI_API_KEYS.length) {
-    try {
-      // 獲取當前 Gemini API 密鑰
-      const apiKey = getCurrentGeminiKey();
-      
-      // 準備命令行參數，確保正確轉義
-      const escapedPrompt = prompt.replace(/"/g, '\\"').replace(/'/g, "\'");
-      
-      // 嘗試不同的Python命令
-      let success = false;
-      let stdout = '';
-      let stderr = '';
-      
-      // 首先嘗試使用spawn方法，這在某些環境中更可靠
-      // 嘗試不同的Python命令路徑
-      const spawnPythonCommands = [
-        '.venv/bin/python',  // 優先嘗試虛擬環境
-        '/app/.venv/bin/python',
-        'python3',
-        'python'
-      ];
-      
-      for (const pythonCmd of spawnPythonCommands) {
-        try {
-          console.log(`Trying to execute with spawn method using ${pythonCmd}...`);
-          
-          // 使用spawn執行Python腳本
-          const pythonProcess = spawn(pythonCmd, [scriptPath, escapedPrompt, apiKey]);
-          
-          // 收集輸出
-          const stdoutChunks = [];
-          const stderrChunks = [];
-          
-          pythonProcess.stdout.on('data', (data) => {
-            stdoutChunks.push(data);
-          });
-          
-          pythonProcess.stderr.on('data', (data) => {
-            stderrChunks.push(data);
-          });
-          
-          // 等待進程完成
-          const exitCode = await new Promise((resolve) => {
-            pythonProcess.on('close', resolve);
-          });
-          
-          // 處理結果
-          stdout = Buffer.concat(stdoutChunks).toString();
-          stderr = Buffer.concat(stderrChunks).toString();
-          
-          if (exitCode === 0 && stdout) {
-            success = true;
-            console.log(`Successfully executed with spawn method using ${pythonCmd}`);
-            break; // 成功執行後跳出循環
-          } else {
-            console.error(`Spawn method with ${pythonCmd} failed with exit code ${exitCode}`);
-            console.error(`Stderr: ${stderr}`);
-            // 繼續嘗試下一個命令
-          }
-        } catch (spawnError) {
-          console.error(`Spawn method error with ${pythonCmd}: ${spawnError.message}`);
-          // 繼續嘗試下一個命令
-        }
-      }
-      
-      // 如果spawn方法失敗，嘗試使用exec方法和不同的Python命令
-      if (!success) {
-        for (const pythonCmd of pythonCommands) {
-          try {
-            console.log(`Trying to execute with ${pythonCmd}...`);
-            // 使用引號包裹路徑和參數，並使用適合當前操作系統的引號和轉義
-            const command = `${pythonCmd} "${scriptPath}" "${escapedPrompt}" "${apiKey}"`;
-            console.log(`Executing command: ${command}`);
-            
-            const result = await execPromise(command);
-            stdout = result.stdout;
-            stderr = result.stderr;
-            success = true;
-            console.log(`Successfully executed with ${pythonCmd}`);
-            break;
-          } catch (cmdError) {
-            console.error(`Failed to execute with ${pythonCmd}: ${cmdError.message}`);
-            // 繼續嘗試下一個命令
-          }
-        }
-      }
-      
-      if (!success) {
-        throw new Error('All Python commands failed. Make sure Python is installed and in your PATH.');
-      }
-      
-      // 檢查是否有錯誤輸出
-      if (stderr) {
-        console.error(`Python script error: ${stderr}`);
-      }
-      
-      // 解析 JSON 輸出
-      let result;
-      try {
-        result = JSON.parse(stdout);
-        console.log('Successfully parsed JSON output');
-      } catch (jsonError) {
-        console.error(`Error parsing JSON: ${jsonError.message}`);
-        console.error(`Raw stdout: ${stdout}`);
-        throw new Error(`Failed to parse JSON output: ${jsonError.message}`);
-      }
-      
-      // 檢查是否成功
-      if (!result.success) {
-        // 輸出調試信息
-        if (result.debug_info) {
-          console.error('Debug info:', JSON.stringify(result.debug_info, null, 2));
-        }
-        
-        // 嘗試下一個密鑰
-        lastError = new Error(result.error || 'Failed to generate image with Python script');
-        getNextGeminiKey();
-        keysTriedCount++;
-        console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} error for image generation: ${result.error}`);
-        continue;
-      }
-      
-      // 返回圖片數據和響應文本
-      return { 
-        imageData: result.image_data,
-        mimeType: result.mime_type || 'image/png', // 提供默認MIME類型
-        responseText: '這是根據你的描述生成的圖片：',
-        generatedText: result.text
-      };
-      
-    } catch (error) {
-      // 嘗試下一個密鑰
-      lastError = error;
-      getNextGeminiKey();
-      keysTriedCount++;
-      console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} error for image generation: ${error.message}`);
+    
+    // 解析 JSON 輸出
+    const result = JSON.parse(stdout);
+    
+    // 檢查是否成功
+    if (!result.success || !result.imageData) {
+      throw new Error(result.error || 'Failed to generate image');
     }
+    
+    // 返回圖片數據和響應文本
+    return { 
+      imageData: result.imageData,
+      mimeType: result.mimeType || 'image/png',
+      responseText: '這是根據你的描述生成的圖片：' + (result.text ? `\n${result.text}` : '')
+    };
+    
+  } catch (error) {
+    console.error('Error in generateImageWithGemini:', error);
+    throw error;
   }
-  
-  // 如果所有密鑰都失敗，拋出錯誤
-  throw lastError || new Error('All Gemini API keys failed for image generation');
 }
 
 async function callChatGPTAPI(messages) {
@@ -1608,32 +1435,26 @@ client.on('messageCreate', async (message) => {
   
   // 檢查用戶是否想要生成圖片
   const isImageGenerationRequest = await detectImageGenerationRequest(message.content);
-  if (isImageGenerationRequest && GEMINI_API_KEYS.length > 0) {
+  if (isImageGenerationRequest) {
     try {
       // 顯示正在生成圖片的提示
       const statusMessage = await message.channel.send('正在生成圖片，請稍候...');
       
-      // 使用 Python 腳本和 Gemini 生成圖片
-      const { imageData, mimeType, responseText, generatedText } = await generateImageWithGemini(message.content);
+      // 使用 genimg.mjs 生成圖片
+      const { imageData, mimeType, responseText } = await generateImageWithGemini(message.content);
       
-      // 將 base64 圖片數據轉換為 Buffer
+      // 將 Base64 編碼的圖片數據轉換為 Buffer
       const buffer = Buffer.from(imageData, 'base64');
       
       // 從 MIME 類型確定文件擴展名
       const fileExtension = mimeType.split('/')[1] || 'png';
+      
+      // 創建臨時文件名
       const fileName = `gemini-image-${Date.now()}.${fileExtension}`;
-      
-      // 準備響應文本
-      let content = responseText || '這是根據你的描述生成的圖片：';
-      
-      // 如果有生成的文本描述，添加到響應中
-      if (generatedText) {
-        content += `\n\n${generatedText}`;
-      }
       
       // 發送圖片和響應文本
       await message.channel.send({
-        content: content,
+        content: responseText || '這是根據你的描述生成的圖片：',
         files: [{
           attachment: buffer,
           name: fileName

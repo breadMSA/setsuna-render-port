@@ -4,9 +4,8 @@
   "description": "A Discord bot that connects to DeepSeek or Gemini API and chats with users in specific channels",
   "main": "index.js",
   "scripts": {
-    "start": "bash -c 'node index.js'",
-    "dev": "nodemon index.js",
-    "check-python": "node -e \"const { spawn } = require('child_process'); const pythonCommands = ['.venv/bin/python', '/app/.venv/bin/python', 'python3', 'python']; let tried = 0; function tryNextCommand() { if (tried >= pythonCommands.length) { console.error('All Python commands failed'); return; } const cmd = pythonCommands[tried]; console.log(`Trying ${cmd} check_python_env.py...`); const proc = spawn(cmd, ['check_python_env.py']); proc.stdout.on('data', data => console.log(data.toString())); proc.stderr.on('data', data => console.error(data.toString())); proc.on('close', code => { console.log(`${cmd} exited with code ${code}`); if (code !== 0 && tried < pythonCommands.length - 1) { tried++; tryNextCommand(); } }); } tryNextCommand();\""
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "keywords": [
     "discord",
