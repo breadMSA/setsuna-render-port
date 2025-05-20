@@ -1330,8 +1330,13 @@ async function detectImageGenerationRequest(content) {
   );
 }
 
-// 使用 Gemini API 生成圖片的函數
+// 使用 Python 腳本和 Gemini API 生成圖片的函數
 async function generateImageWithGemini(prompt) {
+  // 導入 child_process 模塊用於執行 Python 腳本
+  const { exec } = require('child_process');
+  const { promisify } = require('util');
+  const execPromise = promisify(exec);
+  
   // 嘗試所有可用的 Gemini API 密鑰，直到有一個成功
   let lastError = null;
   const initialKeyIndex = currentGeminiKeyIndex;
@@ -1339,39 +1344,39 @@ async function generateImageWithGemini(prompt) {
   
   while (keysTriedCount < GEMINI_API_KEYS.length) {
     try {
-      // 動態導入 Gemini API
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      // 獲取當前 Gemini API 密鑰
+      const apiKey = getCurrentGeminiKey();
       
-      // 初始化 Gemini API
-      const genAI = new GoogleGenerativeAI(getCurrentGeminiKey());
+      // 準備命令行參數，確保正確轉義
+      const escapedPrompt = prompt.replace(/"/g, '\\"').replace(/'/g, "\'");
       
-      // 獲取圖片生成模型
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-preview-image-generation" });
+      // 執行 Python 腳本
+      const { stdout, stderr } = await execPromise(`python "${__dirname}\\generate_image.py" "${escapedPrompt}" "${apiKey}"`);
       
-      // 調用 Gemini API 生成圖片
-      const response = await model.generateContent(prompt, { responseModalities: ['TEXT', 'IMAGE'] });
+      // 檢查是否有錯誤輸出
+      if (stderr) {
+        console.error(`Python script error: ${stderr}`);
+      }
       
-      // 獲取響應內容
-      const result = await response.response();
+      // 解析 JSON 輸出
+      const result = JSON.parse(stdout);
       
-      // 檢查響應
-      if (!result || !result.text()) {
+      // 檢查是否成功
+      if (!result.success) {
         // 嘗試下一個密鑰
-        lastError = new Error('Empty response from Gemini API');
+        lastError = new Error(result.error || 'Failed to generate image with Python script');
         getNextGeminiKey();
         keysTriedCount++;
-        console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} returned empty response for image generation`);
+        console.log(`Gemini API key ${currentGeminiKeyIndex + 1}/${GEMINI_API_KEYS.length} error for image generation: ${result.error}`);
         continue;
       }
       
-      // 提取圖片數據和文本
-      const imageData = result.text();
-      const responseText = '這是根據你的描述生成的圖片：';
-      
-      // 返回圖片描述和響應文本
+      // 返回圖片數據和響應文本
       return { 
-        imageData: imageData, // 使用生成的文本作為圖片描述
-        responseText: responseText 
+        imageData: result.image_data,
+        mimeType: result.mime_type,
+        responseText: '這是根據你的描述生成的圖片：',
+        generatedText: result.text
       };
       
     } catch (error) {
@@ -1455,18 +1460,27 @@ client.on('messageCreate', async (message) => {
       // 顯示正在生成圖片的提示
       const statusMessage = await message.channel.send('正在生成圖片，請稍候...');
       
-      // 使用 Gemini 生成圖片
-      const { imageData, responseText } = await generateImageWithGemini(message.content);
+      // 使用 Python 腳本和 Gemini 生成圖片
+      const { imageData, mimeType, responseText, generatedText } = await generateImageWithGemini(message.content);
       
-      // 將圖片數據轉換為 Buffer
+      // 將 base64 圖片數據轉換為 Buffer
       const buffer = Buffer.from(imageData, 'base64');
       
-      // 創建臨時文件名
-      const fileName = `gemini-image-${Date.now()}.png`;
+      // 從 MIME 類型確定文件擴展名
+      const fileExtension = mimeType.split('/')[1] || 'png';
+      const fileName = `gemini-image-${Date.now()}.${fileExtension}`;
+      
+      // 準備響應文本
+      let content = responseText || '這是根據你的描述生成的圖片：';
+      
+      // 如果有生成的文本描述，添加到響應中
+      if (generatedText) {
+        content += `\n\n${generatedText}`;
+      }
       
       // 發送圖片和響應文本
       await message.channel.send({
-        content: responseText || '這是根據你的描述生成的圖片：',
+        content: content,
         files: [{
           attachment: buffer,
           name: fileName
