@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "apt-get update && apt-get install -y python3 python3-pip python3-venv python3-full python-is-python3 && npm install && python3 -m venv .venv && .venv/bin/pip install -r python_requirements.txt"
+    "buildCommand": "which python3 || echo 'Python3 not found' && ls -la /usr/bin/python* || echo 'No Python binaries found' && npm install && /usr/bin/python3 -m venv .venv || python3 -m venv .venv || python -m venv .venv && .venv/bin/pip install -r python_requirements.txt"
   },
   "deploy": {
     "startCommand": "npm start",
