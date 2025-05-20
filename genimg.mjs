@@ -66,9 +66,11 @@ async function main() {
     }
 
     // 生成圖片
+    console.log(`Generating image with prompt: ${prompt}`);
     const result = await generateImage(prompt);
     
     // 將結果輸出為 JSON
+    console.log('Generated result:', result);
     console.log(JSON.stringify(result));
     
     // 成功時返回 0
