@@ -36,15 +36,31 @@ python3 --version  # 確認安裝成功
 
 ### 2. 安裝Python依賴項
 
-使用以下命令安裝所需的Python庫：
+#### 使用虛擬環境（推薦方式，特別是在Debian/Ubuntu系統）
 
-#### Windows
+在某些Linux系統（特別是Debian/Ubuntu）中，Python環境是「externally managed」的，這意味著您需要使用虛擬環境來安裝Python包。
+
+```bash
+# 創建虛擬環境
+python3 -m venv .venv
+
+# 激活虛擬環境
+source .venv/bin/activate  # Linux/macOS
+.venv\Scripts\activate    # Windows
+
+# 安裝依賴項
+pip install -r python_requirements.txt
+```
+
+#### 直接安裝（如果您的系統允許）
+
+##### Windows
 
 ```bash
 pip install -r python_requirements.txt
 ```
 
-#### Linux
+##### Linux
 
 ```bash
 python3 -m pip install -r python_requirements.txt
@@ -52,13 +68,13 @@ python3 -m pip install -r python_requirements.txt
 
 或者手動安裝：
 
-#### Windows
+##### Windows
 
 ```bash
 pip install google-generativeai Pillow
 ```
 
-#### Linux
+##### Linux
 
 ```bash
 python3 -m pip install google-generativeai Pillow
@@ -70,14 +86,40 @@ python3 -m pip install google-generativeai Pillow
 
 #### 在部署環境中
 
-如果您在部署環境（如Heroku、Railway等）中運行，請確保：
+##### Railway 部署
 
-1. 添加適當的buildpack以支持Python
-2. 設置環境變數以確保Python可用
+Railway使用基於Debian的容器，其Python環境是「externally managed」的。我們已經配置了必要的文件來處理這個問題：
+
+1. **虛擬環境設置**：
+   - `nixpacks.toml` 和 `railway.json` 文件已配置為在部署期間創建Python虛擬環境
+   - 依賴項會使用 `.venv/bin/pip` 安裝到這個虛擬環境中
+
+2. **環境變數**：
+   - PATH 已擴展以包含虛擬環境的bin目錄
+   - PYTHONPATH 已設置為包含應用程序根目錄
+
+3. **診斷**：
+   - 如果遇到Python相關問題，運行診斷腳本：
+     ```
+     npm run check-python
+     ```
+   - 這將提供有關您的Python環境的詳細信息
+
+##### Heroku 部署
+
+如果您在Heroku中運行，請確保：
+
+1. 添加適當的buildpack以支持Node.js和Python
+   - 我們的 `app.json` 文件已經配置了這些buildpack
+
+2. 設置環境變數以確保Gemini API密鑰和Discord令牌可用
+
+3. Python版本：
+   - `runtime.txt` 文件指定了要使用的Python版本
 
 ## 故障排除
 
-如果遇到問題，請檢查：
+### 常見問題
 
 1. **Python路徑**：確保Python已正確安裝並添加到系統PATH中。
 
@@ -85,6 +127,8 @@ python3 -m pip install google-generativeai Pillow
 
    ```bash
    python --version
+   # 或
+   python3 --version
    ```
 
 2. **依賴項安裝**：確保所有Python依賴項都已正確安裝。
@@ -93,9 +137,66 @@ python3 -m pip install google-generativeai Pillow
 
    ```bash
    python -c "import google.generativeai; import PIL; print('Dependencies installed successfully!')"
+   # 或
+   python3 -c "import google.generativeai; import PIL; print('Dependencies installed successfully!')"
    ```
 
 3. **API密鑰**：確保在.env文件中設置了有效的Gemini API密鑰。
+
+### 特定錯誤處理
+
+#### "externally-managed-environment" 錯誤
+
+如果您看到以下錯誤：
+
+```
+error: externally-managed-environment
+× This environment is externally managed
+```
+
+這表示您的Python環境由系統包管理器管理，不允許直接使用pip安裝包。解決方法：
+
+1. **創建並使用虛擬環境**：
+
+   ```bash
+   # 安裝虛擬環境包（如果需要）
+   sudo apt install python3-venv python3-full
+   
+   # 創建虛擬環境
+   python3 -m venv .venv
+   
+   # 激活虛擬環境
+   source .venv/bin/activate
+   
+   # 安裝依賴項
+   pip install -r python_requirements.txt
+   ```
+
+2. **使用虛擬環境中的Python解釋器**：
+
+   確保在運行腳本時使用虛擬環境中的Python解釋器：
+   
+   ```bash
+   .venv/bin/python generate_image.py "your prompt" "your_api_key"
+   ```
+
+#### Python命令未找到
+
+如果系統找不到Python命令，請嘗試：
+
+1. **檢查Python安裝**：
+   ```bash
+   which python3
+   # 或
+   which python
+   ```
+
+2. **運行診斷腳本**：
+   ```bash
+   npm run check-python
+   ```
+
+3. **檢查日誌**：查看應用程序日誌中的詳細調試信息，這些信息會顯示嘗試執行的Python命令和路徑。
 
 ## 如何工作
 

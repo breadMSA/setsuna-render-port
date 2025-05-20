@@ -1383,8 +1383,12 @@ async function generateImageWithGemini(prompt) {
     throw err;
   }
   
-  // 可能的Python命令列表 - 為Railway環境添加更多選項
+  // 可能的Python命令列表 - 為Railway環境添加更多選項，包括虛擬環境路徑
   const pythonCommands = [
+    // 虛擬環境路徑 (Railway環境)
+    '.venv/bin/python', './.venv/bin/python',
+    '/app/.venv/bin/python',
+    // 標準路徑
     'python3', 'python', 'py',
     '/usr/bin/python3', '/usr/bin/python',
     '/usr/local/bin/python3', '/usr/local/bin/python'
@@ -1412,42 +1416,55 @@ async function generateImageWithGemini(prompt) {
       let stderr = '';
       
       // 首先嘗試使用spawn方法，這在某些環境中更可靠
-      try {
-        console.log('Trying to execute with spawn method...');
-        
-        // 使用spawn執行Python腳本
-        const pythonProcess = spawn('python3', [scriptPath, escapedPrompt, apiKey]);
-        
-        // 收集輸出
-        const stdoutChunks = [];
-        const stderrChunks = [];
-        
-        pythonProcess.stdout.on('data', (data) => {
-          stdoutChunks.push(data);
-        });
-        
-        pythonProcess.stderr.on('data', (data) => {
-          stderrChunks.push(data);
-        });
-        
-        // 等待進程完成
-        const exitCode = await new Promise((resolve) => {
-          pythonProcess.on('close', resolve);
-        });
-        
-        // 處理結果
-        stdout = Buffer.concat(stdoutChunks).toString();
-        stderr = Buffer.concat(stderrChunks).toString();
-        
-        if (exitCode === 0 && stdout) {
-          success = true;
-          console.log('Successfully executed with spawn method');
-        } else {
-          console.error(`Spawn method failed with exit code ${exitCode}`);
-          console.error(`Stderr: ${stderr}`);
+      // 嘗試不同的Python命令路徑
+      const spawnPythonCommands = [
+        '.venv/bin/python',  // 優先嘗試虛擬環境
+        '/app/.venv/bin/python',
+        'python3',
+        'python'
+      ];
+      
+      for (const pythonCmd of spawnPythonCommands) {
+        try {
+          console.log(`Trying to execute with spawn method using ${pythonCmd}...`);
+          
+          // 使用spawn執行Python腳本
+          const pythonProcess = spawn(pythonCmd, [scriptPath, escapedPrompt, apiKey]);
+          
+          // 收集輸出
+          const stdoutChunks = [];
+          const stderrChunks = [];
+          
+          pythonProcess.stdout.on('data', (data) => {
+            stdoutChunks.push(data);
+          });
+          
+          pythonProcess.stderr.on('data', (data) => {
+            stderrChunks.push(data);
+          });
+          
+          // 等待進程完成
+          const exitCode = await new Promise((resolve) => {
+            pythonProcess.on('close', resolve);
+          });
+          
+          // 處理結果
+          stdout = Buffer.concat(stdoutChunks).toString();
+          stderr = Buffer.concat(stderrChunks).toString();
+          
+          if (exitCode === 0 && stdout) {
+            success = true;
+            console.log(`Successfully executed with spawn method using ${pythonCmd}`);
+            break; // 成功執行後跳出循環
+          } else {
+            console.error(`Spawn method with ${pythonCmd} failed with exit code ${exitCode}`);
+            console.error(`Stderr: ${stderr}`);
+            // 繼續嘗試下一個命令
+          }
+        } catch (spawnError) {
+          console.error(`Spawn method error with ${pythonCmd}: ${spawnError.message}`);
+          // 繼續嘗試下一個命令
         }
-      } catch (spawnError) {
-        console.error(`Spawn method error: ${spawnError.message}`);
       }
       
       // 如果spawn方法失敗，嘗試使用exec方法和不同的Python命令
