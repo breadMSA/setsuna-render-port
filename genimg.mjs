@@ -1,7 +1,7 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-// 從環境變數獲取 API 密鑰，如果沒有則使用默認值
-const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBnUuCbcSEs9qweAzTZC0uY17mZvOB1Sp4";
+// 從環境變數獲取 API 密鑰
+const apiKey = process.env.GEMINI_API_KEY;
 
 async function generateImage(prompt) {
   try {
