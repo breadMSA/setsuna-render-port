@@ -1336,11 +1336,24 @@ async function generateImageWithGemini(prompt) {
   const { exec } = require('child_process');
   const { promisify } = require('util');
   const execPromise = promisify(exec);
+  const path = require('path');
+  const fs = require('fs');
   
   // 嘗試所有可用的 Gemini API 密鑰，直到有一個成功
   let lastError = null;
   const initialKeyIndex = currentGeminiKeyIndex;
   let keysTriedCount = 0;
+  
+  // 確定腳本路徑，使用適合當前操作系統的路徑分隔符
+  const scriptPath = path.join(__dirname, 'generate_image.py');
+  
+  // 檢查腳本是否存在
+  if (!fs.existsSync(scriptPath)) {
+    throw new Error(`Python script not found at: ${scriptPath}`);
+  }
+  
+  // 可能的Python命令列表
+  const pythonCommands = ['python', 'python3', 'py'];
   
   while (keysTriedCount < GEMINI_API_KEYS.length) {
     try {
@@ -1350,8 +1363,32 @@ async function generateImageWithGemini(prompt) {
       // 準備命令行參數，確保正確轉義
       const escapedPrompt = prompt.replace(/"/g, '\\"').replace(/'/g, "\'");
       
-      // 執行 Python 腳本
-      const { stdout, stderr } = await execPromise(`python "${__dirname}\\generate_image.py" "${escapedPrompt}" "${apiKey}"`);
+      // 嘗試不同的Python命令
+      let success = false;
+      let stdout, stderr;
+      
+      for (const pythonCmd of pythonCommands) {
+        try {
+          console.log(`Trying to execute with ${pythonCmd}...`);
+          // 使用引號包裹路徑和參數，並使用適合當前操作系統的引號和轉義
+          const command = `${pythonCmd} "${scriptPath}" "${escapedPrompt}" "${apiKey}"`;
+          console.log(`Executing command: ${command}`);
+          
+          const result = await execPromise(command);
+          stdout = result.stdout;
+          stderr = result.stderr;
+          success = true;
+          console.log(`Successfully executed with ${pythonCmd}`);
+          break;
+        } catch (cmdError) {
+          console.error(`Failed to execute with ${pythonCmd}: ${cmdError.message}`);
+          // 繼續嘗試下一個命令
+        }
+      }
+      
+      if (!success) {
+        throw new Error('All Python commands failed. Make sure Python is installed and in your PATH.');
+      }
       
       // 檢查是否有錯誤輸出
       if (stderr) {

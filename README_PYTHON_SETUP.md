@@ -11,23 +11,69 @@
 
 ## 安裝步驟
 
-1. **安裝Python依賴項**
+### 1. 安裝Python
 
-   使用以下命令安裝所需的Python庫：
+#### Windows
 
-   ```bash
-   pip install -r python_requirements.txt
-   ```
+1. 從[Python官網](https://www.python.org/downloads/windows/)下載並安裝Python
+2. 安裝時勾選「Add Python to PATH」選項
+3. 安裝完成後，打開命令提示符並運行 `python --version` 確認安裝成功
 
-   或者手動安裝：
+#### Linux (Ubuntu/Debian)
 
-   ```bash
-   pip install google-generativeai Pillow
-   ```
+```bash
+sudo apt update
+sudo apt install python3 python3-pip
+python3 --version  # 確認安裝成功
+```
 
-2. **確保Node.js可以訪問Python**
+#### Linux (CentOS/RHEL)
 
-   確保Python可執行文件在系統PATH中，這樣Node.js可以通過`child_process.exec`調用它。
+```bash
+sudo yum install python3 python3-pip
+python3 --version  # 確認安裝成功
+```
+
+### 2. 安裝Python依賴項
+
+使用以下命令安裝所需的Python庫：
+
+#### Windows
+
+```bash
+pip install -r python_requirements.txt
+```
+
+#### Linux
+
+```bash
+python3 -m pip install -r python_requirements.txt
+```
+
+或者手動安裝：
+
+#### Windows
+
+```bash
+pip install google-generativeai Pillow
+```
+
+#### Linux
+
+```bash
+python3 -m pip install google-generativeai Pillow
+```
+
+### 3. 確保Node.js可以訪問Python
+
+確保Python可執行文件在系統PATH中，這樣Node.js可以通過`child_process.exec`調用它。
+
+#### 在部署環境中
+
+如果您在部署環境（如Heroku、Railway等）中運行，請確保：
+
+1. 添加適當的buildpack以支持Python
+2. 設置環境變數以確保Python可用
 
 ## 故障排除
 
