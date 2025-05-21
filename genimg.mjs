@@ -117,28 +117,60 @@ async function main() {
     // 使用明確的標記，確保它們不會被其他輸出干擾
     console.error('###JSON_START###');
     
-    // 分塊處理 JSON 數據，每塊 512KB
-    const chunkSize = 512 * 1024; // 512KB
-    for (let i = 0; i < jsonResult.length; i += chunkSize) {
-      const chunk = jsonResult.substring(i, i + chunkSize);
-      process.stdout.write(chunk);
-    }
+    // 使用更小的塊大小，每塊 128KB
+    const chunkSize = 128 * 1024; // 128KB
+    
+    // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
+    const writeChunks = async () => {
+      for (let i = 0; i < jsonResult.length; i += chunkSize) {
+        const chunk = jsonResult.substring(i, i + chunkSize);
+        // 使用 Promise 確保寫入完成
+        await new Promise((resolve) => {
+          process.stdout.write(chunk, () => {
+            // 寫入完成後解析 Promise
+            resolve();
+          });
+        });
+        // 添加小延遲，確保輸出緩衝區有時間處理
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    };
+    
+    // 等待所有塊寫入完成
+    await writeChunks();
     
     console.error('###JSON_END###');
     
     // 備用方案：如果需要使用標記，將它們輸出到標準錯誤
     if (process.env.USE_JSON_MARKERS === 'true') {
-      // 使用單一的 process.stderr.write 調用來輸出所有內容
-      let outputBuffer = '###JSON_START###\n';
+      // 使用更小的塊大小，每塊 128KB
+      const backupChunkSize = 128 * 1024; // 128KB
       
-      // 分塊處理 JSON 數據，每塊 512KB
-      for (let i = 0; i < jsonResult.length; i += chunkSize) {
-        outputBuffer += jsonResult.substring(i, i + chunkSize);
-      }
+      // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
+      const writeBackupChunks = async () => {
+        // 輸出開始標記
+        await new Promise((resolve) => {
+          process.stderr.write('###JSON_START###\n', resolve);
+        });
+        
+        // 分塊輸出 JSON 數據
+        for (let i = 0; i < jsonResult.length; i += backupChunkSize) {
+          const chunk = jsonResult.substring(i, i + backupChunkSize);
+          await new Promise((resolve) => {
+            process.stderr.write(chunk, resolve);
+          });
+          // 添加小延遲，確保輸出緩衝區有時間處理
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        
+        // 輸出結束標記
+        await new Promise((resolve) => {
+          process.stderr.write('\n###JSON_END###\n', resolve);
+        });
+      };
       
-      // 添加結束標記並一次性輸出
-      outputBuffer += '\n###JSON_END###\n';
-      process.stderr.write(outputBuffer);
+      // 執行備用輸出
+      await writeBackupChunks();
     }
     
     // 成功時返回 0
@@ -160,22 +192,60 @@ async function main() {
     // 使用明確的標記，確保它們不會被其他輸出干擾
     console.error('###JSON_START###');
     
-    // 分塊處理 JSON 數據，每塊 512KB
-    const chunkSize = 512 * 1024; // 512KB
-    for (let i = 0; i < errorJson.length; i += chunkSize) {
-      const chunk = errorJson.substring(i, i + chunkSize);
-      process.stdout.write(chunk);
-    }
+    // 使用更小的塊大小，每塊 128KB
+    const chunkSize = 128 * 1024; // 128KB
+    
+    // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
+    const writeChunks = async () => {
+      for (let i = 0; i < errorJson.length; i += chunkSize) {
+        const chunk = errorJson.substring(i, i + chunkSize);
+        // 使用 Promise 確保寫入完成
+        await new Promise((resolve) => {
+          process.stdout.write(chunk, () => {
+            // 寫入完成後解析 Promise
+            resolve();
+          });
+        });
+        // 添加小延遲，確保輸出緩衝區有時間處理
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    };
+    
+    // 等待所有塊寫入完成
+    await writeChunks();
     
     console.error('###JSON_END###');
     
     // 備用方案：如果需要使用標記，將它們輸出到標準錯誤
     if (process.env.USE_JSON_MARKERS === 'true') {
-      // 一次性輸出所有內容到標準錯誤
-      process.stderr.write(`###JSON_START###
-${errorJson}
-###JSON_END###
-`);
+      // 使用更小的塊大小，每塊 128KB
+      const backupChunkSize = 128 * 1024; // 128KB
+      
+      // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
+      const writeBackupChunks = async () => {
+        // 輸出開始標記
+        await new Promise((resolve) => {
+          process.stderr.write('###JSON_START###\n', resolve);
+        });
+        
+        // 分塊輸出 JSON 數據
+        for (let i = 0; i < errorJson.length; i += backupChunkSize) {
+          const chunk = errorJson.substring(i, i + backupChunkSize);
+          await new Promise((resolve) => {
+            process.stderr.write(chunk, resolve);
+          });
+          // 添加小延遲，確保輸出緩衝區有時間處理
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        
+        // 輸出結束標記
+        await new Promise((resolve) => {
+          process.stderr.write('\n###JSON_END###\n', resolve);
+        });
+      };
+      
+      // 執行備用輸出
+      await writeBackupChunks();
     }
     
     // 失敗時返回 1

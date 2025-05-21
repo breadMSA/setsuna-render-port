@@ -1446,6 +1446,18 @@ async function generateImageWithGemini(prompt) {
     try {
       // 解析 JSON 輸出
       console.log(`JSON data length: ${jsonData.length} characters`);
+      
+      // 檢查 JSON 數據是否完整
+      // 嘗試找到最後一個右大括號，確保 JSON 數據完整
+      const lastBraceIndex = jsonData.lastIndexOf('}');
+      if (lastBraceIndex !== -1 && lastBraceIndex < jsonData.length - 1) {
+        // 如果最後一個右大括號不是最後一個字符，可能 JSON 數據不完整
+        // 截取到最後一個右大括號為止
+        console.log('JSON data might be incomplete, truncating to last closing brace');
+        jsonData = jsonData.substring(0, lastBraceIndex + 1);
+      }
+      
+      // 嘗試解析可能被截斷的 JSON 數據
       result = JSON.parse(jsonData);
     } catch (parseError) {
       console.error('Error parsing JSON:', parseError.message);
@@ -1455,14 +1467,39 @@ async function generateImageWithGemini(prompt) {
       const matches = jsonData.match(jsonRegex);
       
       if (matches && matches.length > 0) {
-        // 嘗試解析找到的第一個 JSON 對象
+        // 嘗試解析找到的最大 JSON 對象
+        let maxMatch = matches[0];
+        for (const match of matches) {
+          if (match.length > maxMatch.length) {
+            maxMatch = match;
+          }
+        }
+        
         try {
-          console.log(`Attempting to parse first JSON object (length: ${matches[0].length})`);
-          result = JSON.parse(matches[0]);
+          console.log(`Attempting to parse largest JSON object (length: ${maxMatch.length})`);
+          result = JSON.parse(maxMatch);
         } catch (innerError) {
-          console.error('Error parsing first JSON object:', innerError.message);
+          console.error('Error parsing largest JSON object:', innerError.message);
+          
+          // 如果最大對象解析失敗，嘗試所有其他對象
+          let parsed = false;
+          for (const match of matches) {
+            if (match !== maxMatch) {
+              try {
+                console.log(`Attempting to parse alternative JSON object (length: ${match.length})`);
+                result = JSON.parse(match);
+                parsed = true;
+                break;
+              } catch (e) {
+                // 忽略解析錯誤，繼續嘗試下一個匹配
+              }
+            }
+          }
+          
           // 如果所有嘗試都失敗，拋出原始錯誤
-          throw parseError;
+          if (!parsed) {
+            throw parseError;
+          }
         }
       } else {
         // 如果沒有找到任何 JSON 對象，拋出原始錯誤
