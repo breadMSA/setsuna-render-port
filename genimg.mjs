@@ -113,19 +113,25 @@ async function main() {
     // 將完整結果（包括圖片數據）輸出為 JSON
     const jsonResult = JSON.stringify(result);
     
-    // 直接輸出 JSON 數據，不使用標記
-    // 這樣 index.js 可以直接解析整個輸出
-    process.stdout.write(jsonResult);
-    
-    // 如果直接輸出失敗，使用標記作為備用方案
+    // 分塊輸出 JSON 數據，確保完整性
     // 使用明確的標記，確保它們不會被其他輸出干擾
+    console.error('###JSON_START###');
+    
+    // 分塊處理 JSON 數據，每塊 512KB
+    const chunkSize = 512 * 1024; // 512KB
+    for (let i = 0; i < jsonResult.length; i += chunkSize) {
+      const chunk = jsonResult.substring(i, i + chunkSize);
+      process.stdout.write(chunk);
+    }
+    
+    console.error('###JSON_END###');
+    
+    // 備用方案：如果需要使用標記，將它們輸出到標準錯誤
     if (process.env.USE_JSON_MARKERS === 'true') {
-      // 使用單一的 process.stdout.write 調用來輸出所有內容
-      // 為了避免字符串過大，我們將 JSON 數據分塊處理，但使用一個緩衝區收集所有塊
+      // 使用單一的 process.stderr.write 調用來輸出所有內容
       let outputBuffer = '###JSON_START###\n';
       
-      // 分塊處理 JSON 數據，每塊 1MB
-      const chunkSize = 1024 * 1024; // 1MB
+      // 分塊處理 JSON 數據，每塊 512KB
       for (let i = 0; i < jsonResult.length; i += chunkSize) {
         outputBuffer += jsonResult.substring(i, i + chunkSize);
       }
@@ -150,10 +156,20 @@ async function main() {
       error: error.message
     });
     
-    // 直接輸出 JSON 數據
-    process.stdout.write(errorJson);
+    // 分塊輸出 JSON 數據，確保完整性
+    // 使用明確的標記，確保它們不會被其他輸出干擾
+    console.error('###JSON_START###');
     
-    // 如果直接輸出失敗，使用標記作為備用方案
+    // 分塊處理 JSON 數據，每塊 512KB
+    const chunkSize = 512 * 1024; // 512KB
+    for (let i = 0; i < errorJson.length; i += chunkSize) {
+      const chunk = errorJson.substring(i, i + chunkSize);
+      process.stdout.write(chunk);
+    }
+    
+    console.error('###JSON_END###');
+    
+    // 備用方案：如果需要使用標記，將它們輸出到標準錯誤
     if (process.env.USE_JSON_MARKERS === 'true') {
       // 一次性輸出所有內容到標準錯誤
       process.stderr.write(`###JSON_START###

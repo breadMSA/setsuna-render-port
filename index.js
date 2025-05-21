@@ -1370,16 +1370,19 @@ async function generateImageWithGemini(prompt) {
     
     // 處理分塊輸出的 JSON 數據
     let jsonData = '';
+    let result;
     
     // 首先嘗試直接解析整個輸出
     try {
-      const result = JSON.parse(stdout);
+      result = JSON.parse(stdout);
       console.log('Successfully parsed entire stdout as JSON');
-      return {
-        imageData: result.imageData,
-        mimeType: result.mimeType || 'image/png',
-        responseText: '這是根據你的描述生成的圖片：' + (result.text ? `\n${result.text}` : '')
-      };
+      if (result.success !== undefined && result.imageData) {
+        return {
+          imageData: result.imageData,
+          mimeType: result.mimeType || 'image/png',
+          responseText: '這是根據你的描述生成的圖片：' + (result.text ? `\n${result.text}` : '')
+        };
+      }
     } catch (directParseError) {
       console.log('Could not parse entire stdout as JSON, trying to extract JSON data');
     }
@@ -1387,27 +1390,28 @@ async function generateImageWithGemini(prompt) {
     // 按行分割 stdout
     const lines = stdout.split('\n');
     
-    // 找到第一個 JSON_START 和最後一個 JSON_END 之間的所有內容
+    // 找到 ###JSON_START### 和 ###JSON_END### 之間的所有內容
     let startIndex = -1;
     let endIndex = -1;
     
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim() === 'JSON_START' && startIndex === -1) {
+      if (lines[i].includes('###JSON_START###') && startIndex === -1) {
         startIndex = i;
       }
       
-      if (lines[i].trim() === 'JSON_END') {
+      if (lines[i].includes('###JSON_END###')) {
         endIndex = i;
       }
     }
     
-    // 如果找到了 JSON_START 和 JSON_END，提取它們之間的內容
+    // 如果找到了標記，提取它們之間的內容
     if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+      // 提取標記之間的所有內容，不包括標記行
       jsonData = lines.slice(startIndex + 1, endIndex).join('');
       console.log(`Extracted JSON data between markers (length: ${jsonData.length})`);
     } else {
       // 如果沒有找到有效的標記，嘗試查找 JSON 對象
-      console.log('No valid JSON_START/JSON_END markers found, trying to extract JSON object');
+      console.log('No valid JSON markers found, trying to extract JSON object');
       
       // 嘗試查找完整的 JSON 對象
       const jsonRegex = /{[\s\S]*?}/g;
@@ -1420,7 +1424,7 @@ async function generateImageWithGemini(prompt) {
             // 嘗試解析
             const parsed = JSON.parse(match);
             // 如果包含必要的字段，使用這個對象
-            if (parsed.success !== undefined && parsed.imageData !== undefined) {
+            if (parsed.success !== undefined) {
               console.log(`Found valid JSON object in stdout (length: ${match.length})`);
               jsonData = match;
               break;
@@ -1433,14 +1437,12 @@ async function generateImageWithGemini(prompt) {
       
       // 如果仍然沒有找到有效的 JSON 數據，使用整個 stdout
       if (!jsonData) {
-        console.log('No valid JSON object found, trying to parse entire stdout');
+        console.log('No valid JSON object found, using entire stdout');
         jsonData = stdout;
       }
     }
     
-    // 移除可能的重複 JSON 數據
-    // 嘗試找到第一個有效的 JSON 對象
-    let result;
+    // 嘗試解析 JSON 數據
     try {
       // 解析 JSON 輸出
       console.log(`JSON data length: ${jsonData.length} characters`);
@@ -1464,8 +1466,14 @@ async function generateImageWithGemini(prompt) {
         }
       } else {
         // 如果沒有找到任何 JSON 對象，拋出原始錯誤
+        console.error('No JSON objects found in the output');
         throw parseError;
       }
+    }
+    
+    // 檢查結果是否有效
+    if (!result) {
+      throw new Error('Failed to parse JSON data from genimg.mjs output');
     }
     
     // 檢查是否成功
