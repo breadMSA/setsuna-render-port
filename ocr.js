@@ -102,6 +102,6 @@ async function extractTextFromImage(imageUrl, lang = 'eng+chi_tra') {
   }
 }
 
-module.exports = {
+export {
   extractTextFromImage
 };
