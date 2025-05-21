@@ -1370,7 +1370,19 @@ async function generateImageWithGemini(prompt) {
     
     // 處理分塊輸出的 JSON 數據
     let jsonData = '';
-    let isCollectingJson = false;
+    
+    // 首先嘗試直接解析整個輸出
+    try {
+      const result = JSON.parse(stdout);
+      console.log('Successfully parsed entire stdout as JSON');
+      return {
+        imageData: result.imageData,
+        mimeType: result.mimeType || 'image/png',
+        responseText: '這是根據你的描述生成的圖片：' + (result.text ? `\n${result.text}` : '')
+      };
+    } catch (directParseError) {
+      console.log('Could not parse entire stdout as JSON, trying to extract JSON data');
+    }
     
     // 按行分割 stdout
     const lines = stdout.split('\n');
@@ -1392,10 +1404,38 @@ async function generateImageWithGemini(prompt) {
     // 如果找到了 JSON_START 和 JSON_END，提取它們之間的內容
     if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
       jsonData = lines.slice(startIndex + 1, endIndex).join('');
+      console.log(`Extracted JSON data between markers (length: ${jsonData.length})`);
     } else {
-      // 如果沒有找到有效的標記，嘗試直接解析整個 stdout
-      console.log('No valid JSON_START/JSON_END markers found, trying to parse entire stdout');
-      jsonData = stdout;
+      // 如果沒有找到有效的標記，嘗試查找 JSON 對象
+      console.log('No valid JSON_START/JSON_END markers found, trying to extract JSON object');
+      
+      // 嘗試查找完整的 JSON 對象
+      const jsonRegex = /{[\s\S]*?}/g;
+      const matches = stdout.match(jsonRegex);
+      
+      if (matches && matches.length > 0) {
+        // 嘗試每個匹配的 JSON 對象
+        for (const match of matches) {
+          try {
+            // 嘗試解析
+            const parsed = JSON.parse(match);
+            // 如果包含必要的字段，使用這個對象
+            if (parsed.success !== undefined && parsed.imageData !== undefined) {
+              console.log(`Found valid JSON object in stdout (length: ${match.length})`);
+              jsonData = match;
+              break;
+            }
+          } catch (e) {
+            // 忽略解析錯誤，繼續嘗試下一個匹配
+          }
+        }
+      }
+      
+      // 如果仍然沒有找到有效的 JSON 數據，使用整個 stdout
+      if (!jsonData) {
+        console.log('No valid JSON object found, trying to parse entire stdout');
+        jsonData = stdout;
+      }
     }
     
     // 移除可能的重複 JSON 數據
