@@ -111,21 +111,21 @@ async function main() {
     }));
     
     // 將完整結果（包括圖片數據）輸出為 JSON
-    // 為了避免 stdout 緩衝區溢出，我們將大型 JSON 分塊輸出
     const jsonResult = JSON.stringify(result);
     
-    // 標記 JSON 輸出的開始
-    console.log('JSON_START');
+    // 使用單一的 process.stdout.write 調用來輸出所有內容
+    // 為了避免字符串過大，我們將 JSON 數據分塊處理，但使用一個緩衝區收集所有塊
+    let outputBuffer = 'JSON_START\n';
     
-    // 分塊輸出 JSON 數據，每塊 1MB
+    // 分塊處理 JSON 數據，每塊 1MB
     const chunkSize = 1024 * 1024; // 1MB
     for (let i = 0; i < jsonResult.length; i += chunkSize) {
-      const chunk = jsonResult.substring(i, i + chunkSize);
-      console.log(chunk);
+      outputBuffer += jsonResult.substring(i, i + chunkSize);
     }
     
-    // 標記 JSON 輸出的結束
-    console.log('JSON_END');
+    // 添加結束標記並一次性輸出
+    outputBuffer += '\nJSON_END\n';
+    process.stdout.write(outputBuffer);
     
     // 成功時返回 0
     process.exit(0);
@@ -133,14 +133,20 @@ async function main() {
     // 將錯誤信息輸出到標準錯誤
     console.error('Error in main function:', error.message);
     
-    // 將錯誤輸出為 JSON
-    console.log(JSON.stringify({
+    // 使用單一的 process.stdout.write 調用來輸出所有內容，避免多次調用可能導致的重複
+    const errorJson = JSON.stringify({
       success: false,
       text: "",
       imageData: "",
       mimeType: "",
       error: error.message
-    }));
+    });
+    
+    // 一次性輸出所有內容
+    process.stdout.write(`JSON_START
+${errorJson}
+JSON_END
+`);
     
     // 失敗時返回 1
     process.exit(1);

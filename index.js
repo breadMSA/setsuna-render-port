@@ -1375,32 +1375,58 @@ async function generateImageWithGemini(prompt) {
     // 按行分割 stdout
     const lines = stdout.split('\n');
     
-    // 遍歷每一行
-    for (const line of lines) {
-      if (line.trim() === 'JSON_START') {
-        isCollectingJson = true;
-        continue;
+    // 找到第一個 JSON_START 和最後一個 JSON_END 之間的所有內容
+    let startIndex = -1;
+    let endIndex = -1;
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() === 'JSON_START' && startIndex === -1) {
+        startIndex = i;
       }
       
-      if (line.trim() === 'JSON_END') {
-        isCollectingJson = false;
-        continue;
-      }
-      
-      if (isCollectingJson) {
-        jsonData += line;
+      if (lines[i].trim() === 'JSON_END') {
+        endIndex = i;
       }
     }
     
-    // 如果沒有找到 JSON 數據，嘗試直接解析整個 stdout
-    if (!jsonData) {
-      console.log('No JSON_START/JSON_END markers found, trying to parse entire stdout');
+    // 如果找到了 JSON_START 和 JSON_END，提取它們之間的內容
+    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+      jsonData = lines.slice(startIndex + 1, endIndex).join('');
+    } else {
+      // 如果沒有找到有效的標記，嘗試直接解析整個 stdout
+      console.log('No valid JSON_START/JSON_END markers found, trying to parse entire stdout');
       jsonData = stdout;
     }
     
-    // 解析 JSON 輸出
-    console.log(`JSON data length: ${jsonData.length} characters`);
-    const result = JSON.parse(jsonData);
+    // 移除可能的重複 JSON 數據
+    // 嘗試找到第一個有效的 JSON 對象
+    let result;
+    try {
+      // 解析 JSON 輸出
+      console.log(`JSON data length: ${jsonData.length} characters`);
+      result = JSON.parse(jsonData);
+    } catch (parseError) {
+      console.error('Error parsing JSON:', parseError.message);
+      
+      // 嘗試查找完整的 JSON 對象
+      const jsonRegex = /{[\s\S]*?}/g;
+      const matches = jsonData.match(jsonRegex);
+      
+      if (matches && matches.length > 0) {
+        // 嘗試解析找到的第一個 JSON 對象
+        try {
+          console.log(`Attempting to parse first JSON object (length: ${matches[0].length})`);
+          result = JSON.parse(matches[0]);
+        } catch (innerError) {
+          console.error('Error parsing first JSON object:', innerError.message);
+          // 如果所有嘗試都失敗，拋出原始錯誤
+          throw parseError;
+        }
+      } else {
+        // 如果沒有找到任何 JSON 對象，拋出原始錯誤
+        throw parseError;
+      }
+    }
     
     // 檢查是否成功
     if (!result.success || !result.imageData) {
