@@ -1361,8 +1361,10 @@ async function generateImageWithGemini(prompt) {
     
     console.log(`Executing command: ${command.replace(/--api-key=[^\s]+/, '--api-key=****')}`);
     
-    // 執行命令並獲取輸出
-    const { stdout, stderr } = await execPromise(command);
+    // 執行命令並獲取輸出，設置較大的 maxBuffer 值以處理大型輸出
+    // 默認值為 1MB (1024 * 1024)，這裡設置為 50MB
+    const maxBufferSize = 50 * 1024 * 1024; // 50MB
+    const { stdout, stderr } = await execPromise(command, { maxBuffer: maxBufferSize });
     
     if (stderr) {
       console.error(`genimg.mjs stderr: ${stderr}`);
