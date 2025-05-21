@@ -1692,6 +1692,78 @@ client.on('messageCreate', async (message) => {
         imageAttachments.map(attachment => `${attachment.url}`).join(", ") + "]\n\n";
       
       console.log(`Detected image attachment from ${message.author.username}: \n${imageAttachmentInfo}`);
+      
+      // 檢查是否有OCR請求關鍵詞
+      const ocrKeywords = ['ocr', '文字識別', '圖片轉文字', '識別圖片', '讀取圖片', 'image to text', 'read image', 'extract text'];
+      const isOCRRequest = ocrKeywords.some(keyword => 
+        message.content.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (isOCRRequest) {
+        // 顯示正在處理OCR的提示
+        const statusMessage = await message.channel.send('正在識別圖片中的文字，請稍候...');
+        
+        try {
+          // 動態導入OCR模塊
+          const { extractTextFromImage } = await import('./ocr.js');
+          
+          // 處理每個圖片附件
+          const ocrResults = [];
+          for (const attachment of imageAttachments.values()) {
+            console.log(`Processing OCR for image: ${attachment.url}`);
+            
+            // 使用OCR模塊識別文字
+            const result = await extractTextFromImage(attachment.url);
+            
+            if (result.success) {
+              ocrResults.push({
+                url: attachment.url,
+                text: result.text
+              });
+            } else {
+              ocrResults.push({
+                url: attachment.url,
+                error: result.error || '識別失敗'
+              });
+            }
+          }
+          
+          // 刪除狀態消息
+          await statusMessage.delete().catch(console.error);
+          
+          // 發送OCR結果
+          if (ocrResults.length > 0) {
+            const successResults = ocrResults.filter(r => r.text);
+            
+            if (successResults.length > 0) {
+              // 將識別結果添加到消息內容中
+              const ocrText = successResults.map(r => r.text).join('\n\n');
+              const ocrInfo = `\n\n[OCR RESULT FROM IMAGE:\n${ocrText}]\n\n`;
+              
+              // 更新消息內容
+              message.content = message.content + ocrInfo;
+              
+              // 發送識別結果
+              await message.channel.send({
+                content: `圖片文字識別結果：\n\`\`\`\n${ocrText}\n\`\`\``,
+                allowedMentions: { parse: [] }
+              });
+              
+              // 保存OCR結果，稍後添加到消息歷史中
+              message._ocrInfo = ocrInfo;
+            } else {
+              await message.channel.send('無法從圖片中識別出文字，請確保圖片中包含清晰的文字內容。');
+            }
+          } else {
+            await message.channel.send('處理圖片識別時出現問題，請稍後再試。');
+          }
+        } catch (error) {
+          console.error('Error processing OCR:', error);
+          await message.channel.send(`抱歉，處理圖片識別時出現錯誤：${error.message}`);
+          // 刪除狀態消息
+          await statusMessage.delete().catch(console.error);
+        }
+      }
     }
   }
 
@@ -1904,7 +1976,21 @@ if (isReply) {
         messageHistory[i].author === message.author.username
       ) {
         messageHistory[i].content = messageHistory[i].content + message._youtubeSearchInfo;
-        console.log(`Updated message history with YouTube search results for ${message.author.username}`);
+        console.log(`Updated message history with YouTube search info for ${message.author.username}`);
+        break;
+      }
+    }
+  }
+  
+  // 如果有 OCR 識別結果，將其添加到消息歷史中
+  if (message._ocrInfo) {
+    for (let i = 0; i < messageHistory.length; i++) {
+      if (
+        messageHistory[i].role === 'user' &&
+        messageHistory[i].author === message.author.username
+      ) {
+        messageHistory[i].content = messageHistory[i].content + message._ocrInfo;
+          console.log(`Updated message history with OCR results for ${message.author.username}`);
         break;
       }
     }
