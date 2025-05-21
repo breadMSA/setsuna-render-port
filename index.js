@@ -1680,8 +1680,9 @@ client.on('messageCreate', async (message) => {
   
   // 檢查消息是否包含圖片附件
   let imageAttachmentInfo = "";
+  let imageAttachments = null;
   if (message.attachments.size > 0) {
-    const imageAttachments = message.attachments.filter(attachment => {
+    imageAttachments = message.attachments.filter(attachment => {
       const fileExtension = attachment.name.split('.').pop().toLowerCase();
       return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileExtension);
     });
@@ -1692,20 +1693,22 @@ client.on('messageCreate', async (message) => {
         imageAttachments.map(attachment => `${attachment.url}`).join(", ") + "]\n\n";
       
       console.log(`Detected image attachment from ${message.author.username}: \n${imageAttachmentInfo}`);
-      
-      // 檢查是否有OCR請求關鍵詞
-      const ocrKeywords = ['ocr', '文字識別', '圖片轉文字', '識別圖片', '讀取圖片', 'image to text', 'read image', 'extract text'];
-      const isOCRRequest = ocrKeywords.some(keyword => 
-        message.content.toLowerCase().includes(keyword.toLowerCase())
-      );
+    }
+  }
+  
+  // 檢查是否有OCR請求關鍵詞
+  const ocrKeywords = ['ocr', '文字識別', '圖片轉文字', '識別圖片', '讀取圖片', 'image to text', 'read image', 'extract text'];
+  const isOCRRequest = imageAttachments && imageAttachments.size > 0 && ocrKeywords.some(keyword => 
+    message.content.toLowerCase().includes(keyword.toLowerCase())
+  );
       
       if (isOCRRequest) {
         // 顯示正在處理OCR的提示
         const statusMessage = await message.channel.send('正在識別圖片中的文字，請稍候...');
         
         try {
-          // 動態導入OCR模塊
-          const { extractTextFromImage } = await import('./ocr.js');
+          // 導入OCR模塊
+          const { extractTextFromImage } = require('./ocr.js');
           
           // 處理每個圖片附件
           const ocrResults = [];
@@ -1764,8 +1767,8 @@ client.on('messageCreate', async (message) => {
           await statusMessage.delete().catch(console.error);
         }
       }
-    }
-  }
+    
+  
 
   // Check for YouTube URLs or search queries
   const youtubeUrlRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]+)/i;
