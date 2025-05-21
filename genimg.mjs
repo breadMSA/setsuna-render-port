@@ -117,8 +117,8 @@ async function main() {
     // 使用明確的標記，確保它們不會被其他輸出干擾
     console.error('###JSON_START###');
     
-    // 使用更小的塊大小，每塊 128KB
-    const chunkSize = 128 * 1024; // 128KB
+    // 使用更小的塊大小，每塊 64KB
+    const chunkSize = 64 * 1024; // 64KB
     
     // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
     const writeChunks = async () => {
@@ -131,8 +131,12 @@ async function main() {
             resolve();
           });
         });
-        // 添加小延遲，確保輸出緩衝區有時間處理
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // 增加延遲時間，確保輸出緩衝區有足夠時間處理
+        await new Promise(resolve => setTimeout(resolve, 50));
+        // 每輸出一塊數據後，輸出進度信息到標準錯誤
+        if (i + chunkSize < jsonResult.length) {
+          console.error(`Wrote chunk ${Math.floor(i/chunkSize) + 1}/${Math.ceil(jsonResult.length/chunkSize)}, ${Math.round((i + chunkSize) / jsonResult.length * 100)}% complete`);
+        }
       }
     };
     
@@ -143,8 +147,8 @@ async function main() {
     
     // 備用方案：如果需要使用標記，將它們輸出到標準錯誤
     if (process.env.USE_JSON_MARKERS === 'true') {
-      // 使用更小的塊大小，每塊 128KB
-      const backupChunkSize = 128 * 1024; // 128KB
+      // 使用更小的塊大小，每塊 64KB
+      const backupChunkSize = 64 * 1024; // 64KB
       
       // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
       const writeBackupChunks = async () => {
@@ -159,8 +163,12 @@ async function main() {
           await new Promise((resolve) => {
             process.stderr.write(chunk, resolve);
           });
-          // 添加小延遲，確保輸出緩衝區有時間處理
-          await new Promise(resolve => setTimeout(resolve, 10));
+          // 增加延遲時間，確保輸出緩衝區有足夠時間處理
+          await new Promise(resolve => setTimeout(resolve, 50));
+          // 每輸出一塊數據後，輸出進度信息到標準錯誤
+          if (i + backupChunkSize < jsonResult.length) {
+            console.error(`Backup wrote chunk ${Math.floor(i/backupChunkSize) + 1}/${Math.ceil(jsonResult.length/backupChunkSize)}, ${Math.round((i + backupChunkSize) / jsonResult.length * 100)}% complete`);
+          }
         }
         
         // 輸出結束標記
@@ -192,8 +200,8 @@ async function main() {
     // 使用明確的標記，確保它們不會被其他輸出干擾
     console.error('###JSON_START###');
     
-    // 使用更小的塊大小，每塊 128KB
-    const chunkSize = 128 * 1024; // 128KB
+    // 使用更小的塊大小，每塊 64KB
+    const chunkSize = 64 * 1024; // 64KB
     
     // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
     const writeChunks = async () => {
@@ -206,8 +214,12 @@ async function main() {
             resolve();
           });
         });
-        // 添加小延遲，確保輸出緩衝區有時間處理
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // 增加延遲時間，確保輸出緩衝區有足夠時間處理
+        await new Promise(resolve => setTimeout(resolve, 50));
+        // 每輸出一塊數據後，輸出進度信息到標準錯誤
+        if (i + chunkSize < errorJson.length) {
+          console.error(`Error: Wrote chunk ${Math.floor(i/chunkSize) + 1}/${Math.ceil(errorJson.length/chunkSize)}, ${Math.round((i + chunkSize) / errorJson.length * 100)}% complete`);
+        }
       }
     };
     
@@ -218,8 +230,8 @@ async function main() {
     
     // 備用方案：如果需要使用標記，將它們輸出到標準錯誤
     if (process.env.USE_JSON_MARKERS === 'true') {
-      // 使用更小的塊大小，每塊 128KB
-      const backupChunkSize = 128 * 1024; // 128KB
+      // 使用更小的塊大小，每塊 64KB
+      const backupChunkSize = 64 * 1024; // 64KB
       
       // 使用 Promise 和 setTimeout 確保每個塊都能被完整輸出
       const writeBackupChunks = async () => {
@@ -234,8 +246,12 @@ async function main() {
           await new Promise((resolve) => {
             process.stderr.write(chunk, resolve);
           });
-          // 添加小延遲，確保輸出緩衝區有時間處理
-          await new Promise(resolve => setTimeout(resolve, 10));
+          // 增加延遲時間，確保輸出緩衝區有足夠時間處理
+          await new Promise(resolve => setTimeout(resolve, 50));
+          // 每輸出一塊數據後，輸出進度信息到標準錯誤
+          if (i + backupChunkSize < errorJson.length) {
+            console.error(`Error Backup: Wrote chunk ${Math.floor(i/backupChunkSize) + 1}/${Math.ceil(errorJson.length/backupChunkSize)}, ${Math.round((i + backupChunkSize) / errorJson.length * 100)}% complete`);
+          }
         }
         
         // 輸出結束標記

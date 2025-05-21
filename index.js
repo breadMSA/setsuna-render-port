@@ -1372,73 +1372,81 @@ async function generateImageWithGemini(prompt) {
     let jsonData = '';
     let result;
     
+    // 記錄 stdout 的大小，用於調試
+    console.log(`Received stdout with length: ${stdout.length} characters`);
+    
     // 首先嘗試直接解析整個輸出
     try {
-      result = JSON.parse(stdout);
-      console.log('Successfully parsed entire stdout as JSON');
-      if (result.success !== undefined && result.imageData) {
-        return {
-          imageData: result.imageData,
-          mimeType: result.mimeType || 'image/png',
-          responseText: '這是根據你的描述生成的圖片：' + (result.text ? `\n${result.text}` : '')
-        };
+      // 檢查 stdout 是否以 '{' 開頭並以 '}' 結尾，這是有效的 JSON 格式
+      if (stdout.trim().startsWith('{') && stdout.trim().endsWith('}')) {
+        result = JSON.parse(stdout);
+        console.log('Successfully parsed entire stdout as JSON');
+        if (result.success !== undefined && result.imageData) {
+          return {
+            imageData: result.imageData,
+            mimeType: result.mimeType || 'image/png',
+            responseText: '這是根據你的描述生成的圖片：' + (result.text ? `\n${result.text}` : '')
+          };
+        }
+      } else {
+        throw new Error('Stdout is not a valid JSON format');
       }
     } catch (directParseError) {
-      console.log('Could not parse entire stdout as JSON, trying to extract JSON data');
+      console.log(`Could not parse entire stdout as JSON: ${directParseError.message}`);
+      console.log('Trying to extract JSON data from stdout');
     }
     
-    // 按行分割 stdout
-    const lines = stdout.split('\n');
+    // 使用正則表達式查找標記之間的內容，這樣可以處理多行標記
+    const markerRegex = /###JSON_START###([\s\S]*?)###JSON_END###/;
+    const markerMatch = stdout.match(markerRegex);
     
-    // 找到 ###JSON_START### 和 ###JSON_END### 之間的所有內容
-    let startIndex = -1;
-    let endIndex = -1;
-    
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes('###JSON_START###') && startIndex === -1) {
-        startIndex = i;
-      }
-      
-      if (lines[i].includes('###JSON_END###')) {
-        endIndex = i;
-      }
-    }
-    
-    // 如果找到了標記，提取它們之間的內容
-    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-      // 提取標記之間的所有內容，不包括標記行
-      jsonData = lines.slice(startIndex + 1, endIndex).join('');
+    if (markerMatch && markerMatch[1]) {
+      // 提取標記之間的內容
+      jsonData = markerMatch[1].trim();
       console.log(`Extracted JSON data between markers (length: ${jsonData.length})`);
     } else {
-      // 如果沒有找到有效的標記，嘗試查找 JSON 對象
-      console.log('No valid JSON markers found, trying to extract JSON object');
-      
-      // 嘗試查找完整的 JSON 對象
-      const jsonRegex = /{[\s\S]*?}/g;
-      const matches = stdout.match(jsonRegex);
-      
-      if (matches && matches.length > 0) {
-        // 嘗試每個匹配的 JSON 對象
-        for (const match of matches) {
-          try {
-            // 嘗試解析
-            const parsed = JSON.parse(match);
-            // 如果包含必要的字段，使用這個對象
-            if (parsed.success !== undefined) {
-              console.log(`Found valid JSON object in stdout (length: ${match.length})`);
-              jsonData = match;
-              break;
+      // 如果沒有找到標記對，嘗試查找單個開始標記後的所有內容
+      const startMarkerIndex = stdout.indexOf('###JSON_START###');
+      if (startMarkerIndex !== -1) {
+        // 提取開始標記之後的所有內容
+        jsonData = stdout.substring(startMarkerIndex + '###JSON_START###'.length).trim();
+        console.log(`Extracted JSON data after start marker (length: ${jsonData.length})`);
+      } else {
+        // 如果沒有找到任何標記，嘗試查找 JSON 對象
+        console.log('No JSON markers found, trying to extract JSON object');
+        
+        // 嘗試查找最大的 JSON 對象
+        // 使用更複雜的正則表達式來查找可能的 JSON 對象
+        const jsonRegex = /{[\s\S]*?}/g;
+        const matches = stdout.match(jsonRegex);
+        
+        if (matches && matches.length > 0) {
+          // 按大小排序匹配的 JSON 對象
+          const sortedMatches = [...matches].sort((a, b) => b.length - a.length);
+          
+          // 嘗試每個匹配的 JSON 對象，從最大的開始
+          for (const match of sortedMatches) {
+            try {
+              // 嘗試解析
+              const parsed = JSON.parse(match);
+              // 如果包含必要的字段，使用這個對象
+              if (parsed.success !== undefined) {
+                console.log(`Found valid JSON object in stdout (length: ${match.length})`);
+                jsonData = match;
+                break;
+              }
+            } catch (e) {
+              // 忽略解析錯誤，繼續嘗試下一個匹配
+              console.log(`Failed to parse JSON object: ${e.message.substring(0, 100)}...`);
             }
-          } catch (e) {
-            // 忽略解析錯誤，繼續嘗試下一個匹配
           }
         }
-      }
-      
-      // 如果仍然沒有找到有效的 JSON 數據，使用整個 stdout
-      if (!jsonData) {
-        console.log('No valid JSON object found, using entire stdout');
-        jsonData = stdout;
+        
+        // 如果仍然沒有找到有效的 JSON 數據，使用整個 stdout
+        if (!jsonData) {
+          console.log('No valid JSON object found, using entire stdout');
+          jsonData = stdout;
+        }
       }
     }
     
@@ -1446,65 +1454,100 @@ async function generateImageWithGemini(prompt) {
     try {
       // 解析 JSON 輸出
       console.log(`JSON data length: ${jsonData.length} characters`);
+      console.log(`JSON data starts with: ${jsonData.substring(0, 50)}...`);
+      console.log(`JSON data ends with: ...${jsonData.substring(jsonData.length - 50)}`);
       
       // 檢查 JSON 數據是否完整
       // 嘗試找到最後一個右大括號，確保 JSON 數據完整
+      const firstBraceIndex = jsonData.indexOf('{');
       const lastBraceIndex = jsonData.lastIndexOf('}');
-      if (lastBraceIndex !== -1 && lastBraceIndex < jsonData.length - 1) {
-        // 如果最後一個右大括號不是最後一個字符，可能 JSON 數據不完整
-        // 截取到最後一個右大括號為止
-        console.log('JSON data might be incomplete, truncating to last closing brace');
+      
+      if (firstBraceIndex === -1 || lastBraceIndex === -1) {
+        throw new Error('JSON data does not contain valid object braces');
+      }
+      
+      // 如果 JSON 數據不是以 '{' 開頭，可能有前綴內容
+      if (firstBraceIndex > 0) {
+        console.log(`JSON data has prefix content, trimming ${firstBraceIndex} characters`);
+        jsonData = jsonData.substring(firstBraceIndex);
+      }
+      
+      // 如果最後一個右大括號不是最後一個字符，可能 JSON 數據不完整或有後綴內容
+      if (lastBraceIndex < jsonData.length - 1) {
+        console.log('JSON data has suffix content, truncating to last closing brace');
         jsonData = jsonData.substring(0, lastBraceIndex + 1);
       }
       
-      // 嘗試解析可能被截斷的 JSON 數據
+      // 嘗試解析處理後的 JSON 數據
+      console.log(`Attempting to parse processed JSON data (length: ${jsonData.length})`);
       result = JSON.parse(jsonData);
+      console.log('Successfully parsed JSON data');
     } catch (parseError) {
-      console.error('Error parsing JSON:', parseError.message);
+      console.error(`Error parsing JSON: ${parseError.message}`);
+      console.log('Attempting alternative parsing methods...');
       
       // 嘗試查找完整的 JSON 對象
       const jsonRegex = /{[\s\S]*?}/g;
       const matches = jsonData.match(jsonRegex);
       
       if (matches && matches.length > 0) {
+        console.log(`Found ${matches.length} potential JSON objects in the data`);
+        
+        // 按大小排序匹配的 JSON 對象
+        const sortedMatches = [...matches].sort((a, b) => b.length - a.length);
+        
         // 嘗試解析找到的最大 JSON 對象
-        let maxMatch = matches[0];
-        for (const match of matches) {
-          if (match.length > maxMatch.length) {
-            maxMatch = match;
-          }
-        }
+        const maxMatch = sortedMatches[0];
+        console.log(`Largest JSON object length: ${maxMatch.length}`);
         
         try {
-          console.log(`Attempting to parse largest JSON object (length: ${maxMatch.length})`);
+          console.log(`Attempting to parse largest JSON object`);
           result = JSON.parse(maxMatch);
+          console.log('Successfully parsed largest JSON object');
         } catch (innerError) {
-          console.error('Error parsing largest JSON object:', innerError.message);
+          console.error(`Error parsing largest JSON object: ${innerError.message}`);
           
           // 如果最大對象解析失敗，嘗試所有其他對象
           let parsed = false;
-          for (const match of matches) {
-            if (match !== maxMatch) {
-              try {
-                console.log(`Attempting to parse alternative JSON object (length: ${match.length})`);
-                result = JSON.parse(match);
-                parsed = true;
-                break;
-              } catch (e) {
-                // 忽略解析錯誤，繼續嘗試下一個匹配
-              }
+          for (let i = 1; i < sortedMatches.length; i++) {
+            const match = sortedMatches[i];
+            try {
+              console.log(`Attempting to parse alternative JSON object #${i} (length: ${match.length})`);
+              result = JSON.parse(match);
+              console.log(`Successfully parsed alternative JSON object #${i}`);
+              parsed = true;
+              break;
+            } catch (e) {
+              console.log(`Failed to parse alternative JSON object #${i}: ${e.message}`);
             }
           }
           
           // 如果所有嘗試都失敗，拋出原始錯誤
           if (!parsed) {
+            console.error('All parsing attempts failed');
             throw parseError;
           }
         }
       } else {
-        // 如果沒有找到任何 JSON 對象，拋出原始錯誤
+        // 如果沒有找到任何 JSON 對象，嘗試最後的修復方法
         console.error('No JSON objects found in the output');
-        throw parseError;
+        
+        // 嘗試修復常見的 JSON 格式問題
+        console.log('Attempting to fix common JSON format issues...');
+        
+        // 確保 JSON 數據以 '{' 開頭並以 '}' 結尾
+        let fixedJson = jsonData.trim();
+        if (!fixedJson.startsWith('{')) fixedJson = '{' + fixedJson;
+        if (!fixedJson.endsWith('}')) fixedJson = fixedJson + '}';
+        
+        try {
+          console.log('Attempting to parse fixed JSON data');
+          result = JSON.parse(fixedJson);
+          console.log('Successfully parsed fixed JSON data');
+        } catch (fixError) {
+          console.error(`Failed to fix JSON data: ${fixError.message}`);
+          throw parseError; // 拋出原始錯誤
+        }
       }
     }
     
