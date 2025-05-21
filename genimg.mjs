@@ -111,7 +111,21 @@ async function main() {
     }));
     
     // 將完整結果（包括圖片數據）輸出為 JSON
-    console.log(JSON.stringify(result));
+    // 為了避免 stdout 緩衝區溢出，我們將大型 JSON 分塊輸出
+    const jsonResult = JSON.stringify(result);
+    
+    // 標記 JSON 輸出的開始
+    console.log('JSON_START');
+    
+    // 分塊輸出 JSON 數據，每塊 1MB
+    const chunkSize = 1024 * 1024; // 1MB
+    for (let i = 0; i < jsonResult.length; i += chunkSize) {
+      const chunk = jsonResult.substring(i, i + chunkSize);
+      console.log(chunk);
+    }
+    
+    // 標記 JSON 輸出的結束
+    console.log('JSON_END');
     
     // 成功時返回 0
     process.exit(0);

@@ -1368,8 +1368,39 @@ async function generateImageWithGemini(prompt) {
       console.error(`genimg.mjs stderr: ${stderr}`);
     }
     
+    // 處理分塊輸出的 JSON 數據
+    let jsonData = '';
+    let isCollectingJson = false;
+    
+    // 按行分割 stdout
+    const lines = stdout.split('\n');
+    
+    // 遍歷每一行
+    for (const line of lines) {
+      if (line.trim() === 'JSON_START') {
+        isCollectingJson = true;
+        continue;
+      }
+      
+      if (line.trim() === 'JSON_END') {
+        isCollectingJson = false;
+        continue;
+      }
+      
+      if (isCollectingJson) {
+        jsonData += line;
+      }
+    }
+    
+    // 如果沒有找到 JSON 數據，嘗試直接解析整個 stdout
+    if (!jsonData) {
+      console.log('No JSON_START/JSON_END markers found, trying to parse entire stdout');
+      jsonData = stdout;
+    }
+    
     // 解析 JSON 輸出
-    const result = JSON.parse(stdout);
+    console.log(`JSON data length: ${jsonData.length} characters`);
+    const result = JSON.parse(jsonData);
     
     // 檢查是否成功
     if (!result.success || !result.imageData) {
