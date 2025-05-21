@@ -1742,8 +1742,20 @@ client.on('messageCreate', async (message) => {
           publishDate: new Date(video.snippet.publishedAt).toLocaleDateString()
         };
         
-        // 將原始消息內容修改為包含影片信息和發送者訊息，使用更明確的格式
-        message.content = `${message.content}\n\n[YOUTUBE VIDEO SHARED BY ${message.author.username}:\nTitle: "${videoInfo.title}"\nChannel: "${videoInfo.channel}"\nDescription: "${videoInfo.description.substring(0, 300)}${videoInfo.description.length > 300 ? '...' : ''}"\nViews: ${videoInfo.views}\nLikes: ${videoInfo.likes}\nPublished: ${videoInfo.publishDate}]\n\n[Message sent by: ${message.author.username}]`;
+        // 創建 YouTube 影片資訊文本
+        const youtubeInfo = `\n\n[YOUTUBE VIDEO SHARED BY ${message.author.username}:\nTitle: "${videoInfo.title}"\nChannel: "${videoInfo.channel}"\nDescription: "${videoInfo.description.substring(0, 300)}${videoInfo.description.length > 300 ? '...' : ''}"\nViews: ${videoInfo.views}\nLikes: ${videoInfo.likes}\nPublished: ${videoInfo.publishDate}]\n\n[Message sent by: ${message.author.username}]`;
+        
+        // 將影片資訊添加到消息內容中
+        message.content = `${message.content}${youtubeInfo}`;
+        
+        // 更新消息歷史中的最後一條用戶消息
+        for (let i = messageHistory.length - 1; i >= 0; i--) {
+          if (messageHistory[i].role === 'user' && messageHistory[i].author === message.author.username) {
+            messageHistory[i].content = `${messageHistory[i].content}${youtubeInfo}`;
+            console.log(`Updated message history with YouTube info for ${message.author.username}`);
+            break;
+          }
+        }
         
         // 繼續處理消息，不要返回
       }
@@ -1796,8 +1808,20 @@ client.on('messageCreate', async (message) => {
             `Video ${index + 1}: "${video.title}" by ${video.channelTitle}`
           ).join('\n');
           
-          // 將原始消息內容修改為包含搜索結果和發送者訊息
-          message.content = `${message.content}\n\n[YouTube Search Results for "${searchQuery}":\n${videoInfoText}]\n\n[Message sent by: ${message.author.username}]`;
+          // 創建 YouTube 搜索結果文本
+          const youtubeSearchInfo = `\n\n[YouTube Search Results for "${searchQuery}":\n${videoInfoText}]\n\n[Message sent by: ${message.author.username}]`;
+          
+          // 將搜索結果添加到消息內容中
+          message.content = `${message.content}${youtubeSearchInfo}`;
+          
+          // 更新消息歷史中的最後一條用戶消息
+          for (let i = messageHistory.length - 1; i >= 0; i--) {
+            if (messageHistory[i].role === 'user' && messageHistory[i].author === message.author.username) {
+              messageHistory[i].content = `${messageHistory[i].content}${youtubeSearchInfo}`;
+              console.log(`Updated message history with YouTube search results for ${message.author.username}`);
+              break;
+            }
+          }
           
           // 繼續處理消息，不要返回
         }
