@@ -1338,11 +1338,28 @@ async function generateImageWithGemini(prompt) {
     const { promisify } = await import('util');
     const execPromise = promisify(exec);
     
-    // 構建命令，將 prompt 作為參數傳遞給 genimg.mjs
-    // 使用雙引號包裹 prompt，以處理包含空格和特殊字符的情況
-    const command = `node "${__dirname}/genimg.mjs" "${prompt.replace(/"/g, '\"')}"`;  
+    // 獲取 Gemini API 密鑰
+    // 首先嘗試從環境變數獲取
+    let apiKey = process.env.GEMINI_API_KEY;
     
-    console.log(`Executing command: ${command}`);
+    // 如果環境變數中沒有，則嘗試從 GEMINI_API_KEYS 數組中獲取
+    if (!apiKey && GEMINI_API_KEYS && GEMINI_API_KEYS.length > 0) {
+      apiKey = GEMINI_API_KEYS[currentGeminiKeyIndex];
+    }
+    
+    // 構建命令，將 prompt 和 API 密鑰作為參數傳遞給 genimg.mjs
+    // 使用雙引號包裹 prompt，以處理包含空格和特殊字符的情況
+    let command = `node "${__dirname}/genimg.mjs"`;
+    
+    // 如果有 API 密鑰，則添加到命令中
+    if (apiKey) {
+      command += ` --api-key=${apiKey}`;
+    }
+    
+    // 添加 prompt 參數
+    command += ` "${prompt.replace(/"/g, '\"')}"`;  
+    
+    console.log(`Executing command: ${command.replace(/--api-key=[^\s]+/, '--api-key=****')}`);
     
     // 執行命令並獲取輸出
     const { stdout, stderr } = await execPromise(command);
