@@ -1748,14 +1748,8 @@ client.on('messageCreate', async (message) => {
         // 將影片資訊添加到消息內容中
         message.content = `${message.content}${youtubeInfo}`;
         
-        // 更新消息歷史中的最後一條用戶消息
-        for (let i = messageHistory.length - 1; i >= 0; i--) {
-          if (messageHistory[i].role === 'user' && messageHistory[i].author === message.author.username) {
-            messageHistory[i].content = `${messageHistory[i].content}${youtubeInfo}`;
-            console.log(`Updated message history with YouTube info for ${message.author.username}`);
-            break;
-          }
-        }
+        // 保存 YouTube 信息，稍後添加到消息歷史中
+        message._youtubeInfo = youtubeInfo;
         
         // 繼續處理消息，不要返回
       }
@@ -1814,14 +1808,8 @@ client.on('messageCreate', async (message) => {
           // 將搜索結果添加到消息內容中
           message.content = `${message.content}${youtubeSearchInfo}`;
           
-          // 更新消息歷史中的最後一條用戶消息
-          for (let i = messageHistory.length - 1; i >= 0; i--) {
-            if (messageHistory[i].role === 'user' && messageHistory[i].author === message.author.username) {
-              messageHistory[i].content = `${messageHistory[i].content}${youtubeSearchInfo}`;
-              console.log(`Updated message history with YouTube search results for ${message.author.username}`);
-              break;
-            }
-          }
+          // 保存 YouTube 搜索信息，稍後添加到消息歷史中
+          message._youtubeSearchInfo = youtubeSearchInfo;
           
           // 繼續處理消息，不要返回
         }
@@ -1889,6 +1877,34 @@ if (isReply) {
         messageHistory[i].author === message.author.username
       ) {
         messageHistory[i].content = messageHistory[i].content + imageAttachmentInfo;
+        break;
+      }
+    }
+  }
+  
+  // 如果有 YouTube 影片信息，將其添加到消息歷史中
+  if (message._youtubeInfo) {
+    for (let i = 0; i < messageHistory.length; i++) {
+      if (
+        messageHistory[i].role === 'user' &&
+        messageHistory[i].author === message.author.username
+      ) {
+        messageHistory[i].content = messageHistory[i].content + message._youtubeInfo;
+        console.log(`Updated message history with YouTube info for ${message.author.username}`);
+        break;
+      }
+    }
+  }
+  
+  // 如果有 YouTube 搜索結果，將其添加到消息歷史中
+  if (message._youtubeSearchInfo) {
+    for (let i = 0; i < messageHistory.length; i++) {
+      if (
+        messageHistory[i].role === 'user' &&
+        messageHistory[i].author === message.author.username
+      ) {
+        messageHistory[i].content = messageHistory[i].content + message._youtubeSearchInfo;
+        console.log(`Updated message history with YouTube search results for ${message.author.username}`);
         break;
       }
     }
