@@ -1882,7 +1882,7 @@ client.on('messageCreate', async (message) => {
   // 檢查是否是圖片修改請求
   const lastMessage = channelHistory[channelHistory.length - 1];
   const isImageModificationRequest = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0 && 
-    (message.content.match(/可以(幫我)?(改|換|轉|變)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
+    (message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
      message.content.match(/(黑白|彩色)(的也一樣好看|也不錯)/i) ||
      message.content.match(/改成黑白的嗎/i));
 
@@ -1894,7 +1894,18 @@ client.on('messageCreate', async (message) => {
       const statusMessage = await message.channel.send('正在轉換圖片，請稍候...');
 
       // 動態導入 sharp
-      const sharp = (await import('sharp')).default;
+      let sharp;
+      try {
+        console.log('開始導入 sharp 模組');
+        const sharpModule = await import('sharp');
+        sharp = sharpModule.default;
+        console.log('成功導入 sharp 模組');
+      } catch (importError) {
+        console.error('導入 sharp 模組失敗:', importError);
+        await statusMessage.delete().catch(console.error);
+        await message.channel.send('抱歉，處理圖片時出現錯誤，無法載入圖片處理模組。');
+        return;
+      }
 
       // 獲取上一條消息中的圖片
       const lastAttachment = lastMessage.attachments.first();
@@ -1924,16 +1935,29 @@ client.on('messageCreate', async (message) => {
        if (isBlackAndWhiteRequest) {
          console.log('檢測到黑白轉換請求，開始處理圖片');
          try {
-           // 使用 sharp 進行黑白轉換
-           processedImage = await sharp(imageBuffer)
-             .grayscale()
-             .gamma(1.2) // 調整對比度
-             .toBuffer();
-           console.log(`黑白轉換完成，處理後圖片大小: ${processedImage.length} 字節`);
-         } catch (sharpError) {
-           console.error('使用 sharp 處理圖片時出錯:', sharpError);
-           throw new Error(`圖片處理失敗: ${sharpError.message}`);
-         }
+            console.log(`開始處理圖片，原始大小: ${imageBuffer.length} 字節`);
+            // 使用 sharp 進行黑白轉換，添加更多選項以確保穩定性
+            processedImage = await sharp(imageBuffer, { failOnError: false })
+              .grayscale()
+              .gamma(1.2) // 調整對比度
+              .jpeg({ quality: 90 }) // 指定輸出格式和品質
+              .toBuffer();
+            console.log(`黑白轉換完成，處理後圖片大小: ${processedImage.length} 字節`);
+          } catch (sharpError) {
+            console.error('使用 sharp 處理圖片時出錯:', sharpError);
+            // 嘗試使用備用方法處理圖片
+            try {
+              console.log('嘗試使用備用方法處理圖片');
+              processedImage = await sharp(imageBuffer, { failOnError: false })
+                .grayscale() // 使用正確的方法名
+                .toFormat('jpeg') // 明確指定輸出格式
+                .toBuffer();
+              console.log(`備用方法處理完成，圖片大小: ${processedImage.length} 字節`);
+            } catch (backupError) {
+              console.error('備用方法處理圖片也失敗:', backupError);
+              throw new Error(`圖片處理失敗: ${sharpError.message}, 備用方法也失敗: ${backupError.message}`);
+            }
+          }
        } else if (isColorRequest) {
          // 如果是轉換為彩色，我們需要重新生成圖片
          const { imageData, mimeType } = await generateImageWithGemini(message.content);
@@ -1951,11 +1975,23 @@ client.on('messageCreate', async (message) => {
       // 發送處理後的圖片
       console.log(`準備發送處理後的圖片，大小: ${processedImage.length} 字節`);
       try {
+        // 確保文件名有正確的擴展名
+        let fileName = lastAttachment.name;
+        // 如果原始文件名沒有擴展名或擴展名不是圖片格式，添加 .jpg 擴展名
+        if (!fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          fileName += '.jpg';
+        } else {
+          // 如果有擴展名，替換為 .jpg
+          fileName = fileName.replace(/\.[^.]+$/, '.jpg');
+        }
+        
+        console.log(`發送圖片，文件名: ${fileName}`);
         await message.channel.send({
           content: '這是修改後的圖片：',
           files: [{
             attachment: processedImage,
-            name: `modified-${lastAttachment.name}`
+            name: `bw-${fileName}`,
+            description: '黑白處理後的圖片'
           }]
         });
         console.log('成功發送處理後的圖片');
