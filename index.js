@@ -1881,7 +1881,7 @@ client.on('messageCreate', async (message) => {
   
   // 檢查是否是圖片修改請求
   const lastMessage = channelHistory[channelHistory.length - 1];
-  const isImageModificationRequest = lastMessage && 
+  const isImageModificationRequest = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0 && 
     (message.content.match(/可以(幫我)?(改|換|轉|變)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
      message.content.match(/(黑白|彩色)(的也一樣好看|也不錯)/i) ||
      message.content.match(/改成黑白的嗎/i));
@@ -1905,20 +1905,35 @@ client.on('messageCreate', async (message) => {
       }
 
       // 下載圖片
+      console.log(`開始下載圖片: ${lastAttachment.url}`);
       const response = await fetch(lastAttachment.url);
-      const imageBuffer = Buffer.from(await response.arrayBuffer());
+      const arrayBuffer = await response.arrayBuffer();
+      console.log(`圖片下載完成，大小: ${arrayBuffer.byteLength} 字節`);
+      const imageBuffer = Buffer.from(arrayBuffer);
 
       // 根據請求類型處理圖片
        let processedImage;
-       const isBlackAndWhiteRequest = message.content.match(/(黑白|灰階|灰度)/i);
+       // 更精確地檢測黑白轉換請求
+       const isBlackAndWhiteRequest = message.content.match(/(黑白|灰階|灰度)/i) || 
+         message.content.match(/改成黑白/i) || 
+         message.content.match(/變成黑白/i) || 
+         message.content.match(/換成黑白/i) || 
+         message.content.match(/轉成黑白/i);
        const isColorRequest = message.content.match(/(彩色|全彩)/i);
        
        if (isBlackAndWhiteRequest) {
-         // 使用 sharp 進行黑白轉換
-         processedImage = await sharp(imageBuffer)
-           .grayscale()
-           .gamma(1.2) // 調整對比度
-           .toBuffer();
+         console.log('檢測到黑白轉換請求，開始處理圖片');
+         try {
+           // 使用 sharp 進行黑白轉換
+           processedImage = await sharp(imageBuffer)
+             .grayscale()
+             .gamma(1.2) // 調整對比度
+             .toBuffer();
+           console.log(`黑白轉換完成，處理後圖片大小: ${processedImage.length} 字節`);
+         } catch (sharpError) {
+           console.error('使用 sharp 處理圖片時出錯:', sharpError);
+           throw new Error(`圖片處理失敗: ${sharpError.message}`);
+         }
        } else if (isColorRequest) {
          // 如果是轉換為彩色，我們需要重新生成圖片
          const { imageData, mimeType } = await generateImageWithGemini(message.content);
@@ -1934,13 +1949,20 @@ client.on('messageCreate', async (message) => {
        }
 
       // 發送處理後的圖片
-      await message.channel.send({
-        content: '這是修改後的圖片：',
-        files: [{
-          attachment: processedImage,
-          name: `modified-${lastAttachment.name}`
-        }]
-      });
+      console.log(`準備發送處理後的圖片，大小: ${processedImage.length} 字節`);
+      try {
+        await message.channel.send({
+          content: '這是修改後的圖片：',
+          files: [{
+            attachment: processedImage,
+            name: `modified-${lastAttachment.name}`
+          }]
+        });
+        console.log('成功發送處理後的圖片');
+      } catch (sendError) {
+        console.error('發送處理後圖片時出錯:', sendError);
+        await message.channel.send('抱歉，發送處理後的圖片時出現錯誤，請稍後再試。');
+      }
 
       // 刪除狀態消息
       await statusMessage.delete().catch(console.error);
@@ -1953,8 +1975,10 @@ client.on('messageCreate', async (message) => {
   }
 
   // 檢查用戶是否想要生成圖片，傳入消息歷史以進行上下文判斷
-  const isImageGenerationRequest = await detectImageGenerationRequest(message.content, channelHistory);
-  if (isImageGenerationRequest) {
+  // 如果已經識別為圖片修改請求，則不再檢測圖片生成請求
+  if (!isImageModificationRequest) {
+    const isImageGenerationRequest = await detectImageGenerationRequest(message.content, channelHistory);
+    if (isImageGenerationRequest) {
     try {
       // 顯示正在生成圖片的提示
       const statusMessage = await message.channel.send('正在生成圖片，請稍候...');
@@ -1990,6 +2014,7 @@ client.on('messageCreate', async (message) => {
        await message.channel.send('抱歉，生成圖片時出現錯誤，請稍後再試。');
        // 繼續處理消息，讓 AI 回應
     }
+   }
   }
   
   // 檢查消息是否包含圖片附件
