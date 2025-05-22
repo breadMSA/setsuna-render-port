@@ -40,9 +40,16 @@ async function generateImage(prompt) {
     
     // 設置 responseModalities 包含 "Image" 以便模型生成圖片
     console.error('Sending request to Gemini API...');
+    // 增強提示詞，添加更多上下文和細節
+    const enhancedPrompt = `請生成一張圖片：${prompt}。請注意以下要求：
+1. 圖片要高品質、清晰、細節豐富
+2. 使用適當的構圖和光影效果
+3. 確保圖片風格一致且美觀
+4. 盡可能準確呈現描述的內容和特徵`;
+    
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash-preview-image-generation",
-      contents: prompt,
+      contents: enhancedPrompt,
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
       },

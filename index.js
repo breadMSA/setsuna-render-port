@@ -2,6 +2,8 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 const OpenCC = require('opencc-js');
+const path = require('path');
+const { exec } = require('child_process');
 
 // 初始化繁簡轉換器
 const converter = OpenCC.Converter({ from: 'cn', to: 'tw' });
@@ -1718,7 +1720,40 @@ async function generateImageWithGemini(prompt) {
     
     // 檢查是否成功
     if (!result.success || !result.imageData) {
-      throw new Error(result.error || 'Failed to generate image');
+      console.log('圖片生成失敗，準備重試...');
+      // 最多重試 3 次
+      for (let i = 0; i < 3; i++) {
+        console.log(`重試第 ${i + 1} 次...`);
+        try {
+          // 執行 genimg.mjs 腳本
+          const { stdout } = await exec(
+            `node "${path.join(__dirname, 'genimg.mjs')}" --api-key=${getCurrentGeminiKey()} "${prompt}"`,
+            { maxBuffer: 10 * 1024 * 1024 } // 增加緩衝區大小到 10MB
+          );
+          
+          // 解析輸出
+          result = JSON.parse(stdout);
+          
+          // 如果成功生成圖片，跳出重試循環
+          if (result.success && result.imageData) {
+            console.log('重試成功！');
+            break;
+          }
+        } catch (retryError) {
+          console.error(`重試失敗 (${i + 1}/3):`, retryError.message);
+          // 如果是最後一次重試，拋出錯誤
+          if (i === 2) {
+            throw new Error(result.error || 'Failed to generate image after retries');
+          }
+          // 等待 2 秒後再重試
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      
+      // 如果所有重試都失敗
+      if (!result.success || !result.imageData) {
+        throw new Error(result.error || 'Failed to generate image after all retries');
+      }
     }
     
     // 返回圖片數據和響應文本
