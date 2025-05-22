@@ -1,6 +1,34 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
 const fetch = require('node-fetch');
+const OpenCC = require('opencc-js');
+
+// 初始化繁簡轉換器
+const converter = OpenCC.Converter({ from: 'cn', to: 'tw' });
+
+// 檢測文本是否包含繁體中文
+function isTraditionalChinese(text) {
+  // 繁體中文特有字符集
+  const traditionalOnlyChars = new Set([
+    '個', '學', '國', '後', '來', '時', '實', '樣', '點', '過',
+    '體', '關', '當', '務', '產', '發', '會', '無', '與', '內',
+    '萬', '開', '問', '們', '對', '業', '電', '這', '還', '經'
+  ]);
+  
+  // 檢查文本中是否包含繁體中文特有字符
+  for (const char of text) {
+    if (traditionalOnlyChars.has(char)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// 確保文本使用繁體中文
+function ensureTraditionalChinese(text) {
+  return converter(text);
+}
 
 // 初始化消息歷史記錄存儲
 const messageHistories = new Map();
