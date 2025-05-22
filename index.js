@@ -1311,7 +1311,7 @@ async function callGeminiAPI(messages) {
 }
 
 // 檢測用戶是否想要生成圖片的函數
-async function detectImageGenerationRequest(content) {
+async function detectImageGenerationRequest(content, messageHistory = []) {
   // 定義可能表示用戶想要生成圖片的關鍵詞
   const imageGenerationKeywords = [
     '畫圖', '生成圖片', '畫一張', '幫我畫', '幫我生成圖片', '幫我生成一張圖片',
@@ -1320,13 +1320,22 @@ async function detectImageGenerationRequest(content) {
     'create a picture', 'draw a picture', 'generate an image', 'create an image',
     '幫我畫一張', '幫我畫個', '幫忙畫', '幫忙生成圖片', '請畫', '請生成圖片', 'create a image',
     'create the image', '生一個', '生成一個', '給我一張', '給我一個', '做一張', '做一個',
-    '可以畫', '可以生成', '能畫', '能生成', '幫忙生成', '幫忙做', '幫我做',
+    '可以畫', '可以生成', '能畫', '能生成', '幫忙生成', '幫忙做', '幫我做'
+  ];
+  
+  // 定義可能會導致誤判的詞彙（這些詞彙雖然與圖片相關，但在普通對話中也常見）
+  const ambiguousKeywords = [
     '生成', '繪製', '繪圖', '做圖', '做個圖', '畫張', '畫個圖', '圖片', '圖像',
     '帥哥圖', '美女圖', '動漫圖', '風景圖', '照片', '圖'
   ];
   
-  // 檢查內容是否包含任何關鍵詞
+  // 檢查內容是否包含明確的關鍵詞
   const containsKeyword = imageGenerationKeywords.some(keyword => 
+    content.toLowerCase().includes(keyword.toLowerCase())
+  );
+  
+  // 檢查內容是否包含可能導致誤判的詞彙
+  const containsAmbiguousKeyword = ambiguousKeywords.some(keyword => 
     content.toLowerCase().includes(keyword.toLowerCase())
   );
   
@@ -1339,12 +1348,21 @@ async function detectImageGenerationRequest(content) {
     // 檢查是否包含主題詞彙
     /人物|風景|動物|建築|場景|背景|character|landscape|animal|building|scene|background/i.test(content) ||
     // 檢查是否包含特定圖片類型
-    /動漫|漫畫|插圖|素描|水彩|油畫|照片|anime|manga|illustration|sketch|watercolor|painting|photo/i.test(content) ||
-    // 檢查是否包含尺寸、大小相關詞彙
-    /大|小|巨大|微小|高|矮|寬|窄|長|短|超大|迷你|giant|huge|large|small|tiny|big|tall|short|wide|narrow/i.test(content) ||
-    // 檢查是否包含特定物體或場景
-    /籃球|足球|棒球|網球|排球|球場|球框|籃框|球門|運動場|籃板|球員|比賽|basketball|football|soccer|baseball|tennis|volleyball|court|field|player|game|match/i.test(content) ||
-    // 檢查是否包含位置或方向詞彙
+    /動漫|漫畫|插圖|素描|水彩|油畫|照片|anime|manga|illustration|sketch|watercolor|painting|photo/i.test(content)
+  );
+  
+  // 檢查是否包含尺寸、大小相關詞彙
+  const hasSizeDescription = (
+    /大|小|巨大|微小|高|矮|寬|窄|長|短|超大|迷你|giant|huge|large|small|tiny|big|tall|short|wide|narrow/i.test(content)
+  );
+  
+  // 檢查是否包含特定物體或場景
+  const hasSpecificObjects = (
+    /籃球|足球|棒球|網球|排球|球場|球框|籃框|球門|運動場|籃板|球員|比賽|basketball|football|soccer|baseball|tennis|volleyball|court|field|player|game|match/i.test(content)
+  );
+  
+  // 檢查是否包含位置或方向詞彙
+  const hasPositionDescription = (
     /上面|下面|左邊|右邊|中間|旁邊|前面|後面|裡面|外面|遠處|近處|top|bottom|left|right|middle|center|side|front|back|inside|outside|far|near/i.test(content)
   );
   
@@ -1370,15 +1388,57 @@ async function detectImageGenerationRequest(content) {
     /幫我|請|麻煩|拜託|可以|能不能|能否|是否可以|please|could you|can you|would you|help me/i.test(content)
   );
   
+  // 檢查對話上下文，判斷是否在討論圖片生成相關話題
+  let isInImageGenerationContext = false;
+  let previousImageGenerationRequest = false;
+  
+  // 檢查最近的對話歷史（最多檢查最近的5條消息）
+  const recentMessages = messageHistory.slice(-5);
+  
+  // 檢查是否有之前的圖片生成請求或回應
+  for (const msg of recentMessages) {
+    // 檢查用戶之前的消息是否包含圖片生成關鍵詞
+    if (msg.role === 'user' && imageGenerationKeywords.some(keyword => 
+      msg.content.toLowerCase().includes(keyword.toLowerCase())
+    )) {
+      previousImageGenerationRequest = true;
+      isInImageGenerationContext = true;
+      break;
+    }
+    
+    // 檢查機器人之前的回應是否提到了圖片生成
+    if (msg.role === 'assistant' && (
+      msg.content.includes('生成圖片') ||
+      msg.content.includes('畫圖') ||
+      msg.content.includes('generating image') ||
+      msg.content.includes('drawing') ||
+      msg.content.includes('正在生成圖片') ||
+      msg.content.includes('幫你畫')
+    )) {
+      isInImageGenerationContext = true;
+      break;
+    }
+  }
+  
   // 綜合判斷：
-  // 1. 如果包含關鍵詞，則判定為生成圖片請求
-  // 2. 如果同時包含圖片描述和跟進請求，則判定為生成圖片請求
-  // 3. 如果同時包含詳細描述和直接請求，則判定為生成圖片請求
-  // 4. 如果包含特定物體描述和尺寸詞彙，很可能是圖片請求
+  // 1. 如果包含明確的關鍵詞，則判定為生成圖片請求
+  // 2. 如果在圖片生成的上下文中，且包含跟進請求，則判定為生成圖片請求
+  // 3. 如果同時包含圖片描述和跟進請求，則判定為生成圖片請求
+  // 4. 如果同時包含詳細描述和直接請求，則判定為生成圖片請求
+  // 5. 如果包含特定物體描述和尺寸詞彙，且在圖片生成上下文中，則判定為生成圖片請求
+  
+  // 對於可能導致誤判的詞彙，需要更嚴格的條件
+  if (containsAmbiguousKeyword && !isInImageGenerationContext) {
+    // 如果只包含可能導致誤判的詞彙，但不在圖片生成上下文中，需要更多的條件才能判定為圖片生成請求
+    return (hasImageDescription && isFollowUpRequest && hasDetailedDescription) || 
+           (hasImageDescription && isDirectImageRequest && hasDetailedDescription);
+  }
+  
   return containsKeyword || 
-         (hasImageDescription && isFollowUpRequest) || 
-         (hasDetailedDescription && isDirectImageRequest) ||
-         (hasImageDescription && hasDetailedDescription);
+         (isInImageGenerationContext && isFollowUpRequest) || 
+         (hasImageDescription && isFollowUpRequest && (hasDetailedDescription || hasSizeDescription || hasSpecificObjects)) || 
+         (hasDetailedDescription && isDirectImageRequest && (hasImageDescription || hasSizeDescription || hasSpecificObjects)) ||
+         (previousImageGenerationRequest && (hasSizeDescription || hasPositionDescription || hasSpecificObjects));
 }
 
 // 使用 genimg.mjs 生成圖片的函數
@@ -1688,8 +1748,11 @@ client.on('messageCreate', async (message) => {
   // Show typing indicator immediately
   await message.channel.sendTyping();
   
-  // 檢查用戶是否想要生成圖片
-  const isImageGenerationRequest = await detectImageGenerationRequest(message.content);
+  // 獲取頻道的消息歷史用於上下文判斷
+  const channelHistory = messageHistories[message.channelId] || [];
+  
+  // 檢查用戶是否想要生成圖片，傳入消息歷史以進行上下文判斷
+  const isImageGenerationRequest = await detectImageGenerationRequest(message.content, channelHistory);
   if (isImageGenerationRequest) {
     try {
       // 顯示正在生成圖片的提示
