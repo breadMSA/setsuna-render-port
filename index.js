@@ -2,6 +2,9 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 
+// 初始化消息歷史記錄存儲
+const messageHistories = new Map();
+
 // Check for required environment variables
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 if (!DISCORD_TOKEN) {
