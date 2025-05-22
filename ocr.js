@@ -42,13 +42,7 @@ async function downloadImage(url) {
  * @returns {Promise<string>} - 識別出的文字
  */
 async function recognizeText(imagePath, lang = 'eng+chi_tra') {
-  const worker = await createWorker({
-    logger: progress => {
-      if (progress.status === 'recognizing text') {
-        console.log(`OCR進度: ${Math.floor(progress.progress * 100)}%`);
-      }
-    }
-  });
+  const worker = await createWorker();
   
   try {
     await worker.loadLanguage(lang);
