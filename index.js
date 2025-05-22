@@ -1318,17 +1318,36 @@ async function detectImageGenerationRequest(content) {
     'ai 畫圖', 'ai畫圖', 'ai繪圖', 'ai 繪圖', '畫一個', '畫個', '生成一張', '生一張',
     'create a picture', 'draw a picture', 'generate an image', 'create an image',
     '幫我畫一張', '幫我畫個', '幫忙畫', '幫忙生成圖片', '請畫', '請生成圖片', 'create a image',
-    'create the image'
+    'create the image', '生一個', '生成一個', '給我一張', '給我一個', '做一張', '做一個',
+    '可以畫', '可以生成', '能畫', '能生成', '幫忙生成', '幫忙做', '幫我做',
+    '生成', '繪製', '繪圖', '做圖', '做個圖', '畫張', '畫個圖', '圖片', '圖像',
+    '帥哥圖', '美女圖', '動漫圖', '風景圖', '照片', '圖'
   ];
   
-  /*const imageGenerationKeywords = [
-    'qwejasuijasmcjnausf biawe gfisod biUOSDf hnboipawebyu ofguaobusd uhf '
-  ];*/
-  
   // 檢查內容是否包含任何關鍵詞
-  return imageGenerationKeywords.some(keyword => 
+  const containsKeyword = imageGenerationKeywords.some(keyword => 
     content.toLowerCase().includes(keyword.toLowerCase())
   );
+  
+  // 檢查是否包含圖片相關詞彙和描述性語言
+  const hasImageDescription = (
+    // 檢查是否包含顏色詞彙
+    /顏色|色彩|紅色|藍色|綠色|黃色|紫色|橙色|黑色|白色|彩色|color|red|blue|green|yellow|purple|orange|black|white/i.test(content) ||
+    // 檢查是否包含風格詞彙
+    /風格|樣式|設計|卡通|寫實|抽象|未來|復古|現代|style|cartoon|realistic|abstract|futuristic|vintage|modern/i.test(content) ||
+    // 檢查是否包含主題詞彙
+    /人物|風景|動物|建築|場景|背景|character|landscape|animal|building|scene|background/i.test(content) ||
+    // 檢查是否包含特定圖片類型
+    /動漫|漫畫|插圖|素描|水彩|油畫|照片|anime|manga|illustration|sketch|watercolor|painting|photo/i.test(content)
+  );
+  
+  // 檢查是否是對之前回應的跟進請求
+  const isFollowUpRequest = (
+    /我要|我想要|我需要|給我|幫我|可以給我|可以幫我|能給我|能幫我|I want|I need|give me|can you give|can you make/i.test(content)
+  );
+  
+  // 綜合判斷：如果包含關鍵詞，或者同時包含圖片描述和跟進請求，則判定為生成圖片請求
+  return containsKeyword || (hasImageDescription && isFollowUpRequest);
 }
 
 // 使用 genimg.mjs 生成圖片的函數
@@ -1693,13 +1712,7 @@ client.on('messageCreate', async (message) => {
       
       console.log(`Detected image attachment from ${message.author.username}: \n${imageAttachmentInfo}`);
       
-      // 檢查是否有OCR請求關鍵詞
-      const ocrKeywords = ['ocr', '文字識別', '圖片轉文字', '識別圖片', '讀取圖片', 'image to text', 'read image', 'extract text'];
-      const isOCRRequest = ocrKeywords.some(keyword => 
-        message.content.toLowerCase().includes(keyword.toLowerCase())
-      );
-      
-      if (isOCRRequest) {
+      // 自動處理所有圖片附件進行OCR識別，不需要關鍵詞觸發
         // 顯示正在處理OCR的提示
         const statusMessage = await message.channel.send('正在識別圖片中的文字，請稍候...');
         
@@ -1743,27 +1756,21 @@ client.on('messageCreate', async (message) => {
               // 更新消息內容
               message.content = message.content + ocrInfo;
               
-              // 發送識別結果
-              await message.channel.send({
-                content: `圖片文字識別結果：\n\`\`\`\n${ocrText}\n\`\`\``,
-                allowedMentions: { parse: [] }
-              });
-              
               // 保存OCR結果，稍後添加到消息歷史中
               message._ocrInfo = ocrInfo;
+              
+              console.log(`Added OCR results to message content: ${ocrText.substring(0, 100)}...`);
             } else {
-              await message.channel.send('無法從圖片中識別出文字，請確保圖片中包含清晰的文字內容。');
+              console.log('No text could be recognized from the images');
             }
           } else {
-            await message.channel.send('處理圖片識別時出現問題，請稍後再試。');
+            console.log('No OCR results were processed');
           }
         } catch (error) {
           console.error('Error processing OCR:', error);
-          await message.channel.send(`抱歉，處理圖片識別時出現錯誤：${error.message}`);
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
         }
-      }
     }
   }
 
