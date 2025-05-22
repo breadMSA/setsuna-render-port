@@ -1338,16 +1338,46 @@ async function detectImageGenerationRequest(content) {
     // 檢查是否包含主題詞彙
     /人物|風景|動物|建築|場景|背景|character|landscape|animal|building|scene|background/i.test(content) ||
     // 檢查是否包含特定圖片類型
-    /動漫|漫畫|插圖|素描|水彩|油畫|照片|anime|manga|illustration|sketch|watercolor|painting|photo/i.test(content)
+    /動漫|漫畫|插圖|素描|水彩|油畫|照片|anime|manga|illustration|sketch|watercolor|painting|photo/i.test(content) ||
+    // 檢查是否包含尺寸、大小相關詞彙
+    /大|小|巨大|微小|高|矮|寬|窄|長|短|超大|迷你|giant|huge|large|small|tiny|big|tall|short|wide|narrow/i.test(content) ||
+    // 檢查是否包含特定物體或場景
+    /籃球|足球|棒球|網球|排球|球場|球框|籃框|球門|運動場|籃板|球員|比賽|basketball|football|soccer|baseball|tennis|volleyball|court|field|player|game|match/i.test(content) ||
+    // 檢查是否包含位置或方向詞彙
+    /上面|下面|左邊|右邊|中間|旁邊|前面|後面|裡面|外面|遠處|近處|top|bottom|left|right|middle|center|side|front|back|inside|outside|far|near/i.test(content)
   );
   
   // 檢查是否是對之前回應的跟進請求
   const isFollowUpRequest = (
-    /我要|我想要|我需要|給我|幫我|可以給我|可以幫我|能給我|能幫我|I want|I need|give me|can you give|can you make/i.test(content)
+    /我要|我想要|我需要|給我|幫我|可以給我|可以幫我|能給我|能幫我|I want|I need|give me|can you give|can you make/i.test(content) ||
+    // 檢查是否包含修改或調整的請求
+    /改成|變成|調整|修改|不要|不用|去掉|加上|增加|減少|change|modify|adjust|remove|add|increase|decrease|without|with/i.test(content)
   );
   
-  // 綜合判斷：如果包含關鍵詞，或者同時包含圖片描述和跟進請求，則判定為生成圖片請求
-  return containsKeyword || (hasImageDescription && isFollowUpRequest);
+  // 檢查是否包含具體的圖像描述
+  const hasDetailedDescription = (
+    // 檢查是否包含具體的形容詞
+    /很|非常|超級|極其|特別|相當|十分|extremely|very|super|particularly|especially|quite/i.test(content) ||
+    // 檢查是否包含數量詞
+    /一個|兩個|三個|幾個|多個|一些|許多|one|two|three|several|many|some|few|multiple/i.test(content) ||
+    // 檢查是否包含具體的物體描述
+    /圓形|方形|正方形|長方形|三角形|橢圓形|round|square|rectangular|triangular|oval|circle|rectangle|triangle/i.test(content)
+  );
+  
+  // 檢查是否是對圖像生成的直接請求
+  const isDirectImageRequest = (
+    /幫我|請|麻煩|拜託|可以|能不能|能否|是否可以|please|could you|can you|would you|help me/i.test(content)
+  );
+  
+  // 綜合判斷：
+  // 1. 如果包含關鍵詞，則判定為生成圖片請求
+  // 2. 如果同時包含圖片描述和跟進請求，則判定為生成圖片請求
+  // 3. 如果同時包含詳細描述和直接請求，則判定為生成圖片請求
+  // 4. 如果包含特定物體描述和尺寸詞彙，很可能是圖片請求
+  return containsKeyword || 
+         (hasImageDescription && isFollowUpRequest) || 
+         (hasDetailedDescription && isDirectImageRequest) ||
+         (hasImageDescription && hasDetailedDescription);
 }
 
 // 使用 genimg.mjs 生成圖片的函數

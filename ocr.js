@@ -42,11 +42,11 @@ async function downloadImage(url) {
  * @returns {Promise<string>} - 識別出的文字
  */
 async function recognizeText(imagePath, lang = 'eng+chi_tra') {
-  const worker = await createWorker();
+  // 使用新的 API 創建已預加載語言的 worker
+  const worker = await createWorker(lang);
   
   try {
-    await worker.loadLanguage(lang);
-    await worker.initialize(lang);
+    // 直接識別，不需要 loadLanguage 和 initialize
     const { data } = await worker.recognize(imagePath);
     await worker.terminate();
     return data.text;
