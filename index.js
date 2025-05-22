@@ -1879,6 +1879,59 @@ client.on('messageCreate', async (message) => {
   // 獲取頻道的消息歷史用於上下文判斷
   const channelHistory = messageHistories.get(message.channelId) || [];
   
+  // 檢查是否是圖片修改請求
+  const lastMessage = channelHistory[channelHistory.length - 1];
+  const isImageModificationRequest = lastMessage && 
+    message.content.match(/可以(幫我)?(改|換|轉)成(黑白|彩色|其他顏色)/i);
+
+  if (isImageModificationRequest) {
+    try {
+      // 顯示處理狀態
+      const statusMessage = await message.channel.send('正在轉換圖片，請稍候...');
+
+      // 動態導入 sharp
+      const sharp = (await import('sharp')).default;
+
+      // 獲取上一條消息中的圖片
+      const lastAttachment = lastMessage.attachments.first();
+      if (!lastAttachment) {
+        await statusMessage.delete().catch(console.error);
+        await message.channel.send('抱歉，找不到需要修改的圖片。');
+        return;
+      }
+
+      // 下載圖片
+      const response = await fetch(lastAttachment.url);
+      const imageBuffer = Buffer.from(await response.arrayBuffer());
+
+      // 根據請求類型處理圖片
+      let processedImage;
+      if (message.content.includes('黑白')) {
+        processedImage = await sharp(imageBuffer).grayscale().toBuffer();
+      } else if (message.content.includes('彩色')) {
+        // 如果是轉換為彩色，我們需要重新生成圖片
+        return await generateImageWithGemini(message.content);
+      }
+
+      // 發送處理後的圖片
+      await message.channel.send({
+        content: '這是修改後的圖片：',
+        files: [{
+          attachment: processedImage,
+          name: `modified-${lastAttachment.name}`
+        }]
+      });
+
+      // 刪除狀態消息
+      await statusMessage.delete().catch(console.error);
+      return;
+    } catch (error) {
+      console.error('Error modifying image:', error);
+      await message.channel.send('抱歉，處理圖片時出現錯誤，請稍後再試。');
+      return;
+    }
+  }
+
   // 檢查用戶是否想要生成圖片，傳入消息歷史以進行上下文判斷
   const isImageGenerationRequest = await detectImageGenerationRequest(message.content, channelHistory);
   if (isImageGenerationRequest) {
