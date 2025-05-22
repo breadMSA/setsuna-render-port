@@ -1882,9 +1882,12 @@ client.on('messageCreate', async (message) => {
   // 檢查是否是圖片修改請求
   const lastMessage = channelHistory[channelHistory.length - 1];
   const isImageModificationRequest = lastMessage && 
-    message.content.match(/可以(幫我)?(改|換|轉)成(黑白|彩色|其他顏色)/i);
+    (message.content.match(/可以(幫我)?(改|換|轉|想|要)成(黑白|彩色|其他顏色)/i) ||
+     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯)/i));
 
   if (isImageModificationRequest) {
+    // 先發送確認消息
+    await message.channel.send('好的，我這就幫你轉換圖片！');
     try {
       // 顯示處理狀態
       const statusMessage = await message.channel.send('正在轉換圖片，請稍候...');
@@ -1905,13 +1908,29 @@ client.on('messageCreate', async (message) => {
       const imageBuffer = Buffer.from(await response.arrayBuffer());
 
       // 根據請求類型處理圖片
-      let processedImage;
-      if (message.content.includes('黑白')) {
-        processedImage = await sharp(imageBuffer).grayscale().toBuffer();
-      } else if (message.content.includes('彩色')) {
-        // 如果是轉換為彩色，我們需要重新生成圖片
-        return await generateImageWithGemini(message.content);
-      }
+       let processedImage;
+       const isBlackAndWhiteRequest = message.content.match(/(黑白|灰階|灰度)/i);
+       const isColorRequest = message.content.match(/(彩色|全彩)/i);
+       
+       if (isBlackAndWhiteRequest) {
+         // 使用 sharp 進行黑白轉換
+         processedImage = await sharp(imageBuffer)
+           .grayscale()
+           .gamma(1.2) // 調整對比度
+           .toBuffer();
+       } else if (isColorRequest) {
+         // 如果是轉換為彩色，我們需要重新生成圖片
+         const { imageData, mimeType } = await generateImageWithGemini(message.content);
+         return await message.channel.send({
+           content: '這是轉換成彩色的圖片：',
+           files: [{
+             attachment: Buffer.from(imageData, 'base64'),
+             name: `color-${lastAttachment.name}`
+           }]
+         });
+       } else {
+         throw new Error('未指定轉換類型');
+       }
 
       // 發送處理後的圖片
       await message.channel.send({
