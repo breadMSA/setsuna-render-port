@@ -1721,38 +1721,84 @@ async function generateImageWithGemini(prompt) {
     // 檢查是否成功
     if (!result.success || !result.imageData) {
       console.log('圖片生成失敗，準備重試...');
-      // 最多重試 3 次
-      for (let i = 0; i < 3; i++) {
-        console.log(`重試第 ${i + 1} 次...`);
+      
+      // 嘗試使用不同的提示詞格式和 API 密鑰
+      const alternativePrompts = [
+        // 原始提示詞
+        prompt,
+        // 添加明確的圖片生成指令
+        `生成一張圖片：${prompt}`,
+        // 更詳細的描述
+        `請創建一張高品質、彩色的圖片，內容是：${prompt}`,
+        // 英文提示詞可能效果更好
+        `Generate a detailed, high-quality color image of: ${prompt}`
+      ];
+      
+      // 最多重試 4 次，每次使用不同的提示詞格式
+      for (let i = 0; i < alternativePrompts.length; i++) {
+        const currentPrompt = alternativePrompts[i];
+        console.log(`重試第 ${i + 1} 次，使用提示詞：${currentPrompt.substring(0, 30)}${currentPrompt.length > 30 ? '...' : ''}`);
+        
         try {
-          // 執行 genimg.mjs 腳本
+          // 每次重試使用不同的 API 密鑰
+          getNextGeminiKey();
+          const currentKey = getCurrentGeminiKey();
+          console.log(`使用 API 密鑰：${currentKey.substring(0, 4)}...${currentKey.substring(currentKey.length - 4)}`);
+          
+          // 執行 genimg.mjs 腳本，增加超時時間和緩衝區大小
           const { stdout } = await exec(
-            `node "${path.join(__dirname, 'genimg.mjs')}" --api-key=${getCurrentGeminiKey()} "${prompt}"`,
-            { maxBuffer: 10 * 1024 * 1024 } // 增加緩衝區大小到 10MB
+            `node "${path.join(__dirname, 'genimg.mjs')}" --api-key=${currentKey} "${currentPrompt.replace(/"/g, '\"')}"`,
+            { 
+              maxBuffer: 20 * 1024 * 1024, // 增加緩衝區大小到 20MB
+              timeout: 60000 // 設置 60 秒超時
+            }
           );
           
-          // 解析輸出
-          result = JSON.parse(stdout);
+          // 嘗試解析輸出
+          try {
+            result = JSON.parse(stdout);
+          } catch (parseError) {
+            console.error(`解析 JSON 失敗：${parseError.message}`);
+            console.log('嘗試從輸出中提取 JSON 對象...');
+            
+            // 嘗試從輸出中提取 JSON 對象
+            const jsonMatch = stdout.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                result = JSON.parse(jsonMatch[0]);
+                console.log('成功從輸出中提取 JSON 對象');
+              } catch (extractError) {
+                console.error(`提取的 JSON 對象解析失敗：${extractError.message}`);
+                throw parseError; // 拋出原始錯誤
+              }
+            } else {
+              throw parseError; // 拋出原始錯誤
+            }
+          }
           
           // 如果成功生成圖片，跳出重試循環
           if (result.success && result.imageData) {
             console.log('重試成功！');
             break;
+          } else {
+            console.error(`重試未生成圖片，錯誤：${result.error || '未知錯誤'}`);
           }
         } catch (retryError) {
-          console.error(`重試失敗 (${i + 1}/3):`, retryError.message);
+          console.error(`重試失敗 (${i + 1}/${alternativePrompts.length}):`, retryError.message);
           // 如果是最後一次重試，拋出錯誤
-          if (i === 2) {
-            throw new Error(result.error || 'Failed to generate image after retries');
+          if (i === alternativePrompts.length - 1) {
+            throw new Error(result?.error || retryError.message || 'Failed to generate image after all retries');
           }
-          // 等待 2 秒後再重試
-          await new Promise(resolve => setTimeout(resolve, 2000));
         }
+        
+        // 等待 3 秒後再重試，給 API 更多冷卻時間
+        console.log(`等待 3 秒後進行下一次重試...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
       
       // 如果所有重試都失敗
       if (!result.success || !result.imageData) {
-        throw new Error(result.error || 'Failed to generate image after all retries');
+        throw new Error(result?.error || 'Failed to generate image after all retries');
       }
     }
     

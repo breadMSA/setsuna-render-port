@@ -41,19 +41,33 @@ async function generateImage(prompt) {
     // 設置 responseModalities 包含 "Image" 以便模型生成圖片
     console.error('Sending request to Gemini API...');
     // 增強提示詞，添加更多上下文和細節
-    const enhancedPrompt = `請生成一張圖片：${prompt}。請注意以下要求：
-1. 圖片要高品質、清晰、細節豐富
-2. 使用適當的構圖和光影效果
-3. 確保圖片風格一致且美觀
-4. 盡可能準確呈現描述的內容和特徵`;
+    const enhancedPrompt = `請生成一張高品質的圖片，內容是：${prompt}
+
+請嚴格遵循以下要求：
+1. 必須生成一張完整的圖片，不要只生成文字回應
+2. 圖片必須是高解析度、清晰且細節豐富的
+3. 使用專業的構圖和光影效果
+4. 確保圖片風格一致且美觀
+5. 盡可能準確呈現描述的內容和特徵
+6. 使用豐富的色彩和適當的對比度
+7. 圖片必須是彩色的，除非特別要求黑白效果
+8. 不要在圖片中添加任何文字或水印`;
     
+    // 使用更明確的配置參數
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash-preview-image-generation",
       contents: enhancedPrompt,
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
+        temperature: 0.7,
+        topK: 32,
+        topP: 1,
+        maxOutputTokens: 2048,
       },
     });
+    
+    // 添加延遲，確保 API 有足夠時間處理請求
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // 初始化結果對象
     const result = {
@@ -64,20 +78,60 @@ async function generateImage(prompt) {
       error: ""
     };
 
+    // 詳細記錄響應結構，幫助調試
+    console.error('Response structure:', JSON.stringify({
+      candidates: response.candidates ? {
+        length: response.candidates.length,
+        firstCandidate: response.candidates[0] ? {
+          hasContent: !!response.candidates[0].content,
+          partsCount: response.candidates[0].content ? response.candidates[0].content.parts.length : 0
+        } : 'No first candidate'
+      } : 'No candidates'
+    }));
+    
+    // 檢查響應是否有效
+    if (!response.candidates || response.candidates.length === 0) {
+      throw new Error("No candidates in the response");
+    }
+    
+    if (!response.candidates[0].content || !response.candidates[0].content.parts) {
+      throw new Error("No content parts in the response");
+    }
+    
     // 處理響應
     for (const part of response.candidates[0].content.parts) {
+      console.error('Processing part type:', part.text ? 'text' : (part.inlineData ? 'inlineData' : 'unknown'));
+      
       // 根據部分類型，處理文本或圖片
       if (part.text) {
         result.text = part.text;
+        console.error('Found text content:', part.text.substring(0, 100) + (part.text.length > 100 ? '...' : ''));
       } else if (part.inlineData) {
         result.imageData = part.inlineData.data; // Base64 編碼的圖片數據
         result.mimeType = part.inlineData.mimeType;
         result.success = true;
+        console.error('Found image data, MIME type:', part.inlineData.mimeType);
+        console.error('Image data length:', part.inlineData.data.length);
       }
     }
 
-    // 如果沒有找到圖片數據，拋出錯誤
-    if (!result.imageData) {
+    // 如果沒有找到圖片數據，嘗試從文本中提取
+    if (!result.imageData && result.text) {
+      console.error('No image data found, attempting to extract from text');
+      
+      // 嘗試從文本中提取 Base64 編碼的圖片數據
+      const base64Regex = /data:image\/(jpeg|png|gif|webp);base64,([A-Za-z0-9+/=]+)/;
+      const base64Match = result.text.match(base64Regex);
+      
+      if (base64Match) {
+        console.error('Found Base64 image data in text');
+        result.mimeType = `image/${base64Match[1]}`;
+        result.imageData = base64Match[2];
+        result.success = true;
+      } else {
+        throw new Error("No image data found in the response");
+      }
+    } else if (!result.imageData) {
       throw new Error("No image data found in the response");
     }
 
