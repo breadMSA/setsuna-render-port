@@ -1882,8 +1882,9 @@ client.on('messageCreate', async (message) => {
   // 檢查是否是圖片修改請求
   const lastMessage = channelHistory[channelHistory.length - 1];
   const isImageModificationRequest = lastMessage && 
-    (message.content.match(/可以(幫我)?(改|換|轉|變)成(黑白|彩色|其他顏色)/i) ||
-     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯)/i));
+    (message.content.match(/可以(幫我)?(改|換|轉|變)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
+     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯)/i) ||
+     message.content.match(/改成黑白的嗎/i));
 
   if (isImageModificationRequest) {
     // 先發送確認消息
