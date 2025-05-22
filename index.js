@@ -1016,8 +1016,10 @@ English Style (Default):
 - Keep punctuation natural and casual
 
 中文回應風格：
-- 如果對方用的是繁體中文，你一定務必必須要用繁體中文回覆
-- 如果對方用的是繁體中文，你絕對不能用簡體中文回覆
+- 【極其重要】如果對方用的是繁體中文，你必須使用繁體中文回覆，絕對禁止使用任何簡體中文字符
+- 【極其重要】檢測用戶輸入的語言：如果包含繁體中文特有的字（如「個」「學」「國」「後」「來」「時」「實」「樣」「點」「過」等），則判定為繁體中文，必須用繁體中文回覆
+- 【極其重要】禁止在回覆中混用繁簡體，必須全部使用繁體中文字符
+- 【極其重要】如果不確定某個字的繁體寫法，選擇使用其他詞彙替代，但絕對不能使用簡體字
 - 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
 - 用簡單標點 不要加太多標點符號
 - 語氣要像在跟朋友聊天一樣自然
@@ -1323,7 +1325,9 @@ async function detectImageGenerationRequest(content, messageHistory = []) {
     'create a picture', 'draw a picture', 'generate an image', 'create an image',
     '幫我畫一張', '幫我畫個', '幫忙畫', '幫忙生成圖片', '請畫', '請生成圖片', 'create a image',
     'create the image', '生一個', '生成一個', '給我一張', '給我一個', '做一張', '做一個',
-    '可以畫', '可以生成', '能畫', '能生成', '幫忙生成', '幫忙做', '幫我做'
+    '可以畫', '可以生成', '能畫', '能生成', '幫忙生成', '幫忙做', '幫我做', '隨便生一張圖',
+    '隨便畫一張', '隨便畫', '隨便生成', '隨便給我一張', '隨便做一張', '生張圖', '生個圖',
+    '生圖', '幫我生圖', '幫我隨便生一張圖', '幫我隨便畫一張', '幫我隨便生成一張'
   ];
   
   // 定義可能會導致誤判的詞彙（這些詞彙雖然與圖片相關，但在普通對話中也常見）
@@ -1430,6 +1434,18 @@ async function detectImageGenerationRequest(content, messageHistory = []) {
   // 4. 如果同時包含詳細描述和直接請求，則判定為生成圖片請求
   // 5. 如果包含特定物體描述和尺寸詞彙，且在圖片生成上下文中，則判定為生成圖片請求
   
+  // 首先檢查是否包含明確的關鍵詞，這是最優先的判斷條件
+  if (containsKeyword) {
+    console.log('明確的圖片生成關鍵詞被檢測到:', content);
+    return true;
+  }
+  
+  // 檢查是否包含「隨便」和「圖」的組合，這也是明確的生成圖片請求
+  if (/隨便.*圖|圖.*隨便/i.test(content)) {
+    console.log('檢測到「隨便」和「圖」的組合:', content);
+    return true;
+  }
+  
   // 對於可能導致誤判的詞彙，需要更嚴格的條件
   if (containsAmbiguousKeyword && !isInImageGenerationContext) {
     // 如果只包含可能導致誤判的詞彙，但不在圖片生成上下文中，需要更多的條件才能判定為圖片生成請求
@@ -1437,8 +1453,8 @@ async function detectImageGenerationRequest(content, messageHistory = []) {
            (hasImageDescription && isDirectImageRequest && hasDetailedDescription);
   }
   
-  return containsKeyword || 
-         (isInImageGenerationContext && isFollowUpRequest) || 
+  // 其他綜合判斷條件
+  return (isInImageGenerationContext && isFollowUpRequest) || 
          (hasImageDescription && isFollowUpRequest && (hasDetailedDescription || hasSizeDescription || hasSpecificObjects)) || 
          (hasDetailedDescription && isDirectImageRequest && (hasImageDescription || hasSizeDescription || hasSpecificObjects)) ||
          (previousImageGenerationRequest && (hasSizeDescription || hasPositionDescription || hasSpecificObjects));
@@ -1752,7 +1768,7 @@ client.on('messageCreate', async (message) => {
   await message.channel.sendTyping();
   
   // 獲取頻道的消息歷史用於上下文判斷
-  const channelHistory = messageHistories[message.channelId] || [];
+  const channelHistory = messageHistories.get(message.channelId) || [];
   
   // 檢查用戶是否想要生成圖片，傳入消息歷史以進行上下文判斷
   const isImageGenerationRequest = await detectImageGenerationRequest(message.content, channelHistory);
@@ -2250,8 +2266,16 @@ if (isReply) {
     // Refresh typing indicator
     await message.channel.sendTyping();
     
+    // 檢查用戶輸入是否為繁體中文，如果是，確保回覆也是繁體中文
+    let finalResponse = response;
+    if (isTraditionalChinese(message.content)) {
+      console.log('檢測到繁體中文輸入，確保回覆使用繁體中文');
+      // 確保回覆使用繁體中文
+      finalResponse = ensureTraditionalChinese(response);
+    }
+    
     // Send the response
-    await message.channel.send(response);
+    await message.channel.send(finalResponse);
     if (fallbackUsed) {
       console.log(`Response sent using ${modelUsed} model (fallback from ${preferredModel})`);
     } else {
