@@ -1904,8 +1904,26 @@ client.on('messageCreate', async (message) => {
   // 檢查上一條消息是否包含圖片附件
   const hasImageAttachment = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0;
   // 檢查上一條消息是否是機器人發送的圖片生成消息
-  const isLastMessageImageGeneration = lastMessage && lastMessage.author.bot && 
-    lastMessage.content && lastMessage.content.includes('這是根據你的描述生成的圖片');
+  const isLastMessageImageGeneration = lastMessage && lastMessage.author.bot && (
+    // 檢查消息內容是否包含圖片生成相關文字
+    (lastMessage.content && (
+      lastMessage.content.includes('這是根據你的描述生成的圖片') ||
+      lastMessage.content.includes('生成的圖片') ||
+      lastMessage.content.includes('根據你的描述')
+    )) ||
+    // 檢查機器人的消息是否包含圖片附件，且不是回覆用戶的圖片修改請求
+    (lastMessage.attachments && lastMessage.attachments.size > 0 && 
+     !lastMessage.content.includes('這是修改後的圖片'))
+  );
+  
+  // 記錄上一條消息的信息，幫助診斷問題
+  console.log('上一條消息來自:', lastMessage ? (lastMessage.author.bot ? '機器人' : '用戶') : '無');
+  if (lastMessage && lastMessage.content) {
+    console.log('上一條消息內容:', lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : ''));
+  }
+  if (lastMessage && lastMessage.attachments) {
+    console.log('上一條消息包含附件:', lastMessage.attachments.size > 0);
+  }
   
   // 更全面的圖片修改請求檢測
   const isBlackAndWhiteRequest = 
@@ -1922,7 +1940,15 @@ client.on('messageCreate', async (message) => {
     message.content.match(/改成黑白的$/i) ||
     message.content.match(/變成黑白的$/i) ||
     message.content.match(/換成黑白的$/i) ||
-    message.content.match(/轉成黑白的$/i);
+    message.content.match(/轉成黑白的$/i) ||
+    // 添加「幫我」開頭的請求形式
+    message.content.match(/^幫我(改|換|轉|變)成黑白/i) ||
+    message.content.match(/^幫我(改|換|轉|變)成灰階/i) ||
+    message.content.match(/^幫我(改|換|轉|變)成灰度/i) ||
+    // 添加更多可能的表達方式
+    message.content.match(/^(改|換|轉|變)成黑白/i) ||
+    message.content.match(/^(改|換|轉|變)成灰階/i) ||
+    message.content.match(/^(改|換|轉|變)成灰度/i);
   
   // 如果上一條消息是圖片生成或包含圖片附件，且當前消息是黑白請求，則視為圖片修改請求
   const isImageModificationRequest = (hasImageAttachment || isLastMessageImageGeneration) && isBlackAndWhiteRequest;
