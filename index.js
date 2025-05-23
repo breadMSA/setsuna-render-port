@@ -2198,6 +2198,10 @@ client.on('messageCreate', async (message) => {
          console.log(`找到上一條消息中的圖片附件: ${previousAttachment.url}`);
          
          try {
+            // 獲取圖片數據
+            const response = await fetch(previousAttachment.url);
+            const imageBuffer = await response.buffer();
+            
             console.log(`開始處理圖片，原始大小: ${imageBuffer.length} 字節`);
             processedImage = await sharp(imageBuffer, { failOnError: false })
               .grayscale()
