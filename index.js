@@ -1347,6 +1347,26 @@ async function callGeminiAPI(messages) {
 
 // 檢測用戶是否想要生成圖片的函數
 async function detectImageGenerationRequest(content, messageHistory = []) {
+  // 檢查是否是黑白轉換請求，如果是，則不視為圖片生成請求
+  const isBlackAndWhiteRequest = content.match(/(黑白|灰階|灰度)/i) || 
+    content.match(/改成黑白/i) || 
+    content.match(/變成黑白/i) || 
+    content.match(/換成黑白/i) || 
+    content.match(/轉成黑白/i);
+  
+  // 檢查最近的消息歷史，看是否有圖片附件
+  let hasRecentImageAttachment = false;
+  if (messageHistory.length > 0) {
+    const lastMessage = messageHistory[messageHistory.length - 1];
+    hasRecentImageAttachment = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0;
+  }
+  
+  // 如果是黑白轉換請求，且最近有圖片附件，則不視為圖片生成請求
+  if (isBlackAndWhiteRequest && hasRecentImageAttachment) {
+    console.log('detectImageGenerationRequest: 檢測到黑白轉換請求，且有圖片附件，不視為圖片生成請求');
+    return false;
+  }
+  
   // 定義可能表示用戶想要生成圖片的關鍵詞
   const imageGenerationKeywords = [
     '畫圖', '生成圖片', '畫一張', '幫我畫', '幫我生成圖片', '幫我生成一張圖片',
@@ -1883,8 +1903,13 @@ client.on('messageCreate', async (message) => {
   const lastMessage = channelHistory[channelHistory.length - 1];
   const isImageModificationRequest = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0 && 
     (message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
-     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯)/i) ||
-     message.content.match(/改成黑白的嗎/i));
+     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯|也超好看)/i) ||
+     message.content.match(/改成黑白的嗎/i) ||
+     message.content.match(/(黑白|灰階|灰度)/i) ||
+     message.content.match(/改成黑白/i) ||
+     message.content.match(/變成黑白/i) ||
+     message.content.match(/換成黑白/i) ||
+     message.content.match(/轉成黑白/i));
 
   if (isImageModificationRequest) {
     // 先發送確認消息
@@ -1938,9 +1963,10 @@ client.on('messageCreate', async (message) => {
             console.log(`開始處理圖片，原始大小: ${imageBuffer.length} 字節`);
             // 使用 sharp 進行黑白轉換，添加更多選項以確保穩定性
             processedImage = await sharp(imageBuffer, { failOnError: false })
-              .grayscale()
+              .grayscale() // 轉換為灰階
+              .normalize() // 標準化對比度
               .gamma(1.2) // 調整對比度
-              .jpeg({ quality: 90 }) // 指定輸出格式和品質
+              .jpeg({ quality: 90, progressive: true }) // 指定輸出格式和品質，使用漸進式 JPEG
               .toBuffer();
             console.log(`黑白轉換完成，處理後圖片大小: ${processedImage.length} 字節`);
           } catch (sharpError) {
@@ -1948,14 +1974,26 @@ client.on('messageCreate', async (message) => {
             // 嘗試使用備用方法處理圖片
             try {
               console.log('嘗試使用備用方法處理圖片');
+              // 使用更簡單的處理方式
               processedImage = await sharp(imageBuffer, { failOnError: false })
                 .grayscale() // 使用正確的方法名
-                .toFormat('jpeg') // 明確指定輸出格式
+                .toFormat('jpeg', { quality: 90 }) // 明確指定輸出格式和品質
                 .toBuffer();
               console.log(`備用方法處理完成，圖片大小: ${processedImage.length} 字節`);
             } catch (backupError) {
               console.error('備用方法處理圖片也失敗:', backupError);
-              throw new Error(`圖片處理失敗: ${sharpError.message}, 備用方法也失敗: ${backupError.message}`);
+              // 嘗試最後的備用方法
+              try {
+                console.log('嘗試使用最後的備用方法處理圖片');
+                // 使用最簡單的處理方式
+                processedImage = await sharp(imageBuffer)
+                  .grayscale()
+                  .toBuffer();
+                console.log(`最後備用方法處理完成，圖片大小: ${processedImage.length} 字節`);
+              } catch (finalError) {
+                console.error('所有處理方法都失敗:', finalError);
+                throw new Error(`圖片處理失敗: ${sharpError.message}, 所有備用方法也失敗`);
+              }
             }
           }
        } else if (isColorRequest) {
@@ -2013,6 +2051,19 @@ client.on('messageCreate', async (message) => {
   // 檢查用戶是否想要生成圖片，傳入消息歷史以進行上下文判斷
   // 如果已經識別為圖片修改請求，則不再檢測圖片生成請求
   if (!isImageModificationRequest) {
+    // 檢查是否是黑白轉換請求，如果是，則不檢測圖片生成請求
+    const isBlackAndWhiteRequest = message.content.match(/(黑白|灰階|灰度)/i) || 
+      message.content.match(/改成黑白/i) || 
+      message.content.match(/變成黑白/i) || 
+      message.content.match(/換成黑白/i) || 
+      message.content.match(/轉成黑白/i);
+    
+    if (isBlackAndWhiteRequest && lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0) {
+      console.log('檢測到黑白轉換請求，但已有圖片附件，不檢測圖片生成請求');
+      // 這是圖片修改請求，不是圖片生成請求
+      return;
+    }
+    
     const isImageGenerationRequest = await detectImageGenerationRequest(message.content, channelHistory);
     if (isImageGenerationRequest) {
     try {
