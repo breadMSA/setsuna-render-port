@@ -1511,7 +1511,7 @@ async function detectImageGenerationRequest(content, messageHistory = []) {
 }
 
 // 使用 genimg.mjs 生成圖片的函數
-async function generateImageWithGemini(prompt) {
+async function generateImageWithGemini(prompt, imageUrl = null) {
   try {
     // 使用 child_process 執行 genimg.mjs
     const { exec } = await import('child_process');
@@ -1536,10 +1536,16 @@ async function generateImageWithGemini(prompt) {
       command += ` --api-key=${apiKey}`;
     }
     
-    // 添加 prompt 參數
-    command += ` "${prompt.replace(/"/g, '\"')}"`;  
+    // 如果提供了圖片 URL，添加到命令中
+    if (imageUrl) {
+      command += ` --image-url="${imageUrl.replace(/"/g, '\"')}"`;
+      console.log(`添加圖片 URL 參數: ${imageUrl}`);
+    }
     
-    console.log(`Executing command: ${command.replace(/--api-key=[^\s]+/, '--api-key=****')}`);
+    // 添加 prompt 參數
+    command += ` "${prompt.replace(/"/g, '\"')}"`;
+    
+    console.log(`Executing command: ${command.replace(/--api-key=[^\s]+/, '--api-key=****').replace(/--image-url=[^\s]+/, '--image-url=****')}`);
     
     // 執行命令並獲取輸出，設置較大的 maxBuffer 值以處理大型輸出
     // 默認值為 1MB (1024 * 1024)，這裡設置為 50MB
@@ -1958,39 +1964,51 @@ client.on('messageCreate', async (message) => {
   
   // 更全面的圖片修改請求檢測
   const isImageModificationRequest = 
-    // 完整的問句形式
+    // 完整的問句形式 - 黑白相關
     message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
     message.content.match(/可以(改|換|轉|變)成黑白的嗎/i) ||
     message.content.match(/能(幫我)?(改|換|轉|變)成黑白([的嗎])?/i) ||
     message.content.match(/能不能(改|換|轉|變)成黑白([的嗎])?/i) ||
     // 評價形式
     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯|也超好看)/i) ||
-    // 直接請求形式
+    // 直接請求形式 - 黑白相關
     message.content.match(/改成黑白的嗎/i) ||
     message.content.match(/(黑白|灰階|灰度)/i) ||
     message.content.match(/改成黑白/i) ||
     message.content.match(/變成黑白/i) ||
     message.content.match(/換成黑白/i) ||
     message.content.match(/轉成黑白/i) ||
-    // 添加更簡單的請求形式
+    // 添加更簡單的請求形式 - 黑白相關
     message.content.match(/黑白的$/i) ||
     message.content.match(/改成黑白的$/i) ||
     message.content.match(/變成黑白的$/i) ||
     message.content.match(/換成黑白的$/i) ||
     message.content.match(/轉成黑白的$/i) ||
-    // 添加「幫我」開頭的請求形式
+    // 添加「幫我」開頭的請求形式 - 黑白相關
     message.content.match(/^幫我(改|換|轉|變)成黑白/i) ||
     message.content.match(/^幫我(改|換|轉|變)成灰階/i) ||
     message.content.match(/^幫我(改|換|轉|變)成灰度/i) ||
-    // 添加更多可能的表達方式
+    // 添加更多可能的表達方式 - 黑白相關
     message.content.match(/^(改|換|轉|變)成黑白/i) ||
     message.content.match(/^(改|換|轉|變)成灰階/i) ||
     message.content.match(/^(改|換|轉|變)成灰度/i) ||
-    // 添加更多修改請求的表達方式
+    
+    // 風格相關的修改請求
+    message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果|的)([的嗎])?/i) ||
+    message.content.match(/(改|換|轉|變)成(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果|的)?/i) ||
+    message.content.match(/(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果)/i) ||
+    
+    // 添加更多通用修改請求的表達方式
     message.content.match(/(修改|調整|微調)(一下|圖片|這張圖)/i) ||
     message.content.match(/(改一下|調一下|換一下)/i) ||
     message.content.match(/可以(修改|調整|微調)/i) ||
-    message.content.match(/(重新|再)(畫|生成|做)(一張|一個)/i);
+    message.content.match(/(重新|再)(畫|生成|做)(一張|一個)/i) ||
+    message.content.match(/能不能(改|換|轉|變)/i) ||
+    message.content.match(/可以(改|換|轉|變)/i) ||
+    message.content.match(/想要(改|換|轉|變)/i) ||
+    message.content.match(/希望(改|換|轉|變)/i) ||
+    message.content.match(/請(改|換|轉|變)/i) ||
+    message.content.match(/幫我(改|換|轉|變)/i);
   
   // 如果上一條消息是圖片生成或包含圖片附件，且當前消息是修改請求，則視為圖片修改請求
   const shouldProcessImageModification = (hasImageAttachment || isLastMessageImageGeneration) && isImageModificationRequest;
@@ -2048,7 +2066,19 @@ client.on('messageCreate', async (message) => {
          message.content.match(/換成黑白/i) || 
          message.content.match(/轉成黑白/i);
        const isColorRequest = message.content.match(/(彩色|全彩)/i);
-       const isGeneralModificationRequest = message.content.match(/(修改|調整|微調|改一下|調一下|換一下)/i);
+       
+       // 檢測風格修改請求
+       const styleMatch = message.content.match(/(改|換|轉|變)成(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果|的)?/i);
+       const isStyleRequest = styleMatch !== null;
+       const requestedStyle = isStyleRequest ? styleMatch[2] : null; // 獲取請求的風格
+       
+       const isGeneralModificationRequest = message.content.match(/(修改|調整|微調|改一下|調一下|換一下)/i) || 
+         message.content.match(/能不能(改|換|轉|變)/i) || 
+         message.content.match(/可以(改|換|轉|變)/i) || 
+         message.content.match(/想要(改|換|轉|變)/i) || 
+         message.content.match(/希望(改|換|轉|變)/i) || 
+         message.content.match(/請(改|換|轉|變)/i) || 
+         message.content.match(/幫我(改|換|轉|變)/i);
        
        if (isBlackAndWhiteRequest) {
          console.log('檢測到黑白轉換請求，開始處理圖片');
@@ -2091,14 +2121,68 @@ client.on('messageCreate', async (message) => {
           }
        } else if (isColorRequest) {
          // 如果是轉換為彩色，我們需要重新生成圖片
-         const { imageData, mimeType } = await generateImageWithGemini(message.content);
+         
+         // 獲取上一條消息中的圖片附件
+         const previousAttachment = previousMessage.attachments.first();
+         if (!previousAttachment) {
+           console.log('找不到上一條消息中的圖片附件');
+           await message.channel.send('抱歉，我找不到需要修改的圖片。請確保上一條消息中包含圖片。');
+           return;
+         }
+         
+         console.log(`找到上一條消息中的圖片附件: ${previousAttachment.url}`);
+         
+         // 構建彩色轉換提示詞
+         const colorPrompt = '請將這張圖片轉換成彩色，保持原圖的主要內容和構圖';
+         
+         // 使用 Gemini 生成彩色圖片
+         const { imageData, mimeType } = await generateImageWithGemini(colorPrompt, previousAttachment.url);
+         
          return await message.channel.send({
            content: '這是轉換成彩色的圖片：',
            files: [{
              attachment: Buffer.from(imageData, 'base64'),
-             name: `color-${lastAttachment.name}`
+             name: `color-${previousAttachment.name}`
            }]
          });
+       } else if (isStyleRequest) {
+         // 如果是風格修改請求，使用 Gemini 重新生成圖片
+         console.log(`檢測到風格修改請求，請求風格: ${requestedStyle}`);
+         
+         // 獲取上一條消息中的圖片附件
+         const previousAttachment = previousMessage.attachments.first();
+         if (!previousAttachment) {
+           console.log('找不到上一條消息中的圖片附件');
+           await message.channel.send('抱歉，我找不到需要修改的圖片。請確保上一條消息中包含圖片。');
+           return;
+         }
+         
+         console.log(`找到上一條消息中的圖片附件: ${previousAttachment.url}`);
+         
+         // 構建提示詞，告訴 Gemini 要生成什麼風格的圖片
+         let stylePrompt = message.content;
+         if (requestedStyle) {
+           // 如果用戶明確指定了風格，使用該風格
+           stylePrompt = `請將上一張圖片轉換成${requestedStyle}風格，保持原圖的主要內容和構圖`;
+         }
+         
+         try {
+           // 使用 Gemini 生成新風格的圖片
+           const { imageData, mimeType } = await generateImageWithGemini(stylePrompt, previousAttachment.url);
+           
+           // 發送生成的圖片
+           return await message.channel.send({
+             content: `這是轉換成${requestedStyle || '新'}風格的圖片：`,
+             files: [{
+               attachment: Buffer.from(imageData, 'base64'),
+               name: `style-${previousAttachment.name}`
+             }]
+           });
+         } catch (error) {
+           console.error('使用 Gemini 生成風格圖片時出錯:', error);
+           await message.channel.send(`抱歉，我無法將圖片轉換為${requestedStyle || '新'}風格。錯誤信息: ${error.message}`);
+           return;
+         }
        } else if (isGeneralModificationRequest) {
          // 如果是一般修改請求，默認轉換為黑白
          console.log('檢測到一般修改請求，默認轉換為黑白');
@@ -2125,7 +2209,7 @@ client.on('messageCreate', async (message) => {
       console.log(`準備發送處理後的圖片，大小: ${processedImage.length} 字節`);
       try {
         // 確保文件名有正確的擴展名
-        let fileName = lastAttachment.name;
+        let fileName = previousAttachment.name;
         // 如果原始文件名沒有擴展名或擴展名不是圖片格式，添加 .jpg 擴展名
         if (!fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
           fileName += '.jpg';
