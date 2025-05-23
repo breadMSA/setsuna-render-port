@@ -1909,11 +1909,14 @@ client.on('messageCreate', async (message) => {
     (lastMessage.content && (
       lastMessage.content.includes('這是根據你的描述生成的圖片') ||
       lastMessage.content.includes('生成的圖片') ||
-      lastMessage.content.includes('根據你的描述')
+      lastMessage.content.includes('根據你的描述') ||
+      lastMessage.content.includes('這是轉換成彩色的圖片') ||
+      lastMessage.content.includes('這是根據你的要求生成的圖片')
     )) ||
     // 檢查機器人的消息是否包含圖片附件，且不是回覆用戶的圖片修改請求
     (lastMessage.attachments && lastMessage.attachments.size > 0 && 
-     !lastMessage.content.includes('這是修改後的圖片'))
+     !lastMessage.content.includes('這是修改後的圖片') &&
+     !lastMessage.content.includes('我將轉換成黑白版本'))
   );
   
   // 記錄上一條消息的信息，幫助診斷問題
@@ -1927,8 +1930,14 @@ client.on('messageCreate', async (message) => {
   
   // 更全面的圖片修改請求檢測
   const isBlackAndWhiteRequest = 
+    // 完整的問句形式
     message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
+    message.content.match(/可以(改|換|轉|變)成黑白的嗎/i) ||
+    message.content.match(/能(幫我)?(改|換|轉|變)成黑白([的嗎])?/i) ||
+    message.content.match(/能不能(改|換|轉|變)成黑白([的嗎])?/i) ||
+    // 評價形式
     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯|也超好看)/i) ||
+    // 直接請求形式
     message.content.match(/改成黑白的嗎/i) ||
     message.content.match(/(黑白|灰階|灰度)/i) ||
     message.content.match(/改成黑白/i) ||
@@ -1954,10 +1963,11 @@ client.on('messageCreate', async (message) => {
   const isImageModificationRequest = (hasImageAttachment || isLastMessageImageGeneration) && isBlackAndWhiteRequest;
   
   // 記錄檢測結果
-  if (isImageModificationRequest) {
-    console.log('檢測到圖片修改請求:', message.content);
+  if (isBlackAndWhiteRequest) {
+    console.log('檢測到黑白轉換請求:', message.content);
     console.log('上一條消息包含圖片附件:', hasImageAttachment);
     console.log('上一條消息是圖片生成:', isLastMessageImageGeneration);
+    console.log('是否視為圖片修改請求:', isImageModificationRequest);
   }
 
   if (isImageModificationRequest) {
