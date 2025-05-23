@@ -1897,37 +1897,63 @@ client.on('messageCreate', async (message) => {
   await message.channel.sendTyping();
   
   // 獲取頻道的消息歷史用於上下文判斷
-  const channelHistory = messageHistories.get(message.channelId) || [];
+  // 從 Discord 獲取最近的消息
+  const recentMessages = await message.channel.messages.fetch({ limit: 10 });
+  // 將最近的消息轉換為歷史記錄格式
+  const channelHistory = Array.from(recentMessages.values())
+    .reverse()
+    .map(msg => ({
+      content: msg.content,
+      author: msg.author,
+      attachments: msg.attachments
+    }));
+  
+  // 記錄消息歷史
+  console.log(`獲取到 ${channelHistory.length} 條消息歷史記錄`);
   
   // 檢查是否是圖片修改請求
-  const lastMessage = channelHistory[channelHistory.length - 1];
+  // 獲取上一條消息（不是當前消息）
+  const previousMessage = channelHistory.length > 1 ? channelHistory[channelHistory.length - 2] : null;
+  
   // 檢查上一條消息是否包含圖片附件
-  const hasImageAttachment = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0;
+  const hasImageAttachment = previousMessage && 
+                           previousMessage.attachments && 
+                           previousMessage.attachments.size > 0 && 
+                           Array.from(previousMessage.attachments.values()).some(attachment => 
+                             attachment.contentType && attachment.contentType.startsWith('image/'));
+  
   // 檢查上一條消息是否是機器人發送的圖片生成消息
-  const isLastMessageImageGeneration = lastMessage && lastMessage.author.bot && (
+  const isLastMessageImageGeneration = previousMessage && 
+                                     previousMessage.author && 
+                                     previousMessage.author.bot && (
     // 優先檢查特殊標記
-    (lastMessage.content && lastMessage.content.includes('[IMAGE_GENERATED]')) ||
+    (previousMessage.content && previousMessage.content.includes('[IMAGE_GENERATED]')) ||
     // 檢查消息內容是否包含圖片生成相關文字
-    (lastMessage.content && (
-      lastMessage.content.includes('這是根據你的描述生成的圖片') ||
-      lastMessage.content.includes('生成的圖片') ||
-      lastMessage.content.includes('根據你的描述') ||
-      lastMessage.content.includes('這是轉換成彩色的圖片') ||
-      lastMessage.content.includes('這是根據你的要求生成的圖片')
+    (previousMessage.content && (
+      previousMessage.content.includes('這是根據你的描述生成的圖片') ||
+      previousMessage.content.includes('生成的圖片') ||
+      previousMessage.content.includes('根據你的描述') ||
+      previousMessage.content.includes('這是轉換成彩色的圖片') ||
+      previousMessage.content.includes('這是根據你的要求生成的圖片')
     )) ||
     // 檢查機器人的消息是否包含圖片附件，且不是回覆用戶的圖片修改請求
-    (lastMessage.attachments && lastMessage.attachments.size > 0 && 
-     !lastMessage.content.includes('這是修改後的圖片') &&
-     !lastMessage.content.includes('我將轉換成黑白版本'))
+    (previousMessage.attachments && previousMessage.attachments.size > 0 && 
+     previousMessage.content && !previousMessage.content.includes('這是修改後的圖片') &&
+     !previousMessage.content.includes('我將轉換成黑白版本'))
   );
   
   // 記錄上一條消息的信息，幫助診斷問題
-  console.log('上一條消息來自:', lastMessage ? (lastMessage.author.bot ? '機器人' : '用戶') : '無');
-  if (lastMessage && lastMessage.content) {
-    console.log('上一條消息內容:', lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : ''));
+  console.log('上一條消息來自:', previousMessage ? (previousMessage.author && previousMessage.author.bot ? '機器人' : '用戶') : '無');
+  if (previousMessage && previousMessage.content) {
+    console.log('上一條消息內容:', previousMessage.content.substring(0, 50) + (previousMessage.content.length > 50 ? '...' : ''));
   }
-  if (lastMessage && lastMessage.attachments) {
-    console.log('上一條消息包含附件:', lastMessage.attachments.size > 0);
+  if (previousMessage && previousMessage.attachments) {
+    console.log('上一條消息包含附件:', previousMessage.attachments.size > 0);
+    if (previousMessage.attachments.size > 0) {
+      previousMessage.attachments.forEach((attachment, id) => {
+        console.log(`附件 ${id}: ${attachment.name}, 類型: ${attachment.contentType}`);
+      });
+    }
   }
   
   // 更全面的圖片修改請求檢測
@@ -1999,7 +2025,7 @@ client.on('messageCreate', async (message) => {
       }
 
       // 獲取上一條消息中的圖片
-      const lastAttachment = lastMessage.attachments.first();
+      const lastAttachment = previousMessage.attachments.first();
       if (!lastAttachment) {
         await statusMessage.delete().catch(console.error);
         await message.channel.send('抱歉，找不到需要修改的圖片。');
