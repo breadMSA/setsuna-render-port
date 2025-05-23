@@ -2169,7 +2169,7 @@ client.on('messageCreate', async (message) => {
       message.content.match(/換成黑白/i) || 
       message.content.match(/轉成黑白/i);
     
-    if (isBlackAndWhiteRequest && lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0) {
+    if (isBlackAndWhiteRequest && previousMessage && previousMessage.attachments && previousMessage.attachments.size > 0) {
       console.log('檢測到黑白轉換請求，但已有圖片附件，不檢測圖片生成請求');
       // 這是圖片修改請求，不是圖片生成請求
       // 將其標記為圖片修改請求，並執行圖片修改邏輯
@@ -2195,7 +2195,7 @@ client.on('messageCreate', async (message) => {
         }
 
         // 獲取上一條消息中的圖片
-        const lastAttachment = lastMessage.attachments.first();
+        const lastAttachment = previousMessage.attachments.first();
         if (!lastAttachment) {
           await statusMessage.delete().catch(console.error);
           await message.channel.send('抱歉，找不到需要修改的圖片。');
