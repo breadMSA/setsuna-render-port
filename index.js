@@ -1905,6 +1905,8 @@ client.on('messageCreate', async (message) => {
   const hasImageAttachment = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0;
   // 檢查上一條消息是否是機器人發送的圖片生成消息
   const isLastMessageImageGeneration = lastMessage && lastMessage.author.bot && (
+    // 優先檢查特殊標記
+    (lastMessage.content && lastMessage.content.includes('[IMAGE_GENERATED]')) ||
     // 檢查消息內容是否包含圖片生成相關文字
     (lastMessage.content && (
       lastMessage.content.includes('這是根據你的描述生成的圖片') ||
@@ -1929,7 +1931,7 @@ client.on('messageCreate', async (message) => {
   }
   
   // 更全面的圖片修改請求檢測
-  const isBlackAndWhiteRequest = 
+  const isImageModificationRequest = 
     // 完整的問句形式
     message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
     message.content.match(/可以(改|換|轉|變)成黑白的嗎/i) ||
@@ -1957,20 +1959,25 @@ client.on('messageCreate', async (message) => {
     // 添加更多可能的表達方式
     message.content.match(/^(改|換|轉|變)成黑白/i) ||
     message.content.match(/^(改|換|轉|變)成灰階/i) ||
-    message.content.match(/^(改|換|轉|變)成灰度/i);
+    message.content.match(/^(改|換|轉|變)成灰度/i) ||
+    // 添加更多修改請求的表達方式
+    message.content.match(/(修改|調整|微調)(一下|圖片|這張圖)/i) ||
+    message.content.match(/(改一下|調一下|換一下)/i) ||
+    message.content.match(/可以(修改|調整|微調)/i) ||
+    message.content.match(/(重新|再)(畫|生成|做)(一張|一個)/i);
   
-  // 如果上一條消息是圖片生成或包含圖片附件，且當前消息是黑白請求，則視為圖片修改請求
-  const isImageModificationRequest = (hasImageAttachment || isLastMessageImageGeneration) && isBlackAndWhiteRequest;
+  // 如果上一條消息是圖片生成或包含圖片附件，且當前消息是修改請求，則視為圖片修改請求
+  const shouldProcessImageModification = (hasImageAttachment || isLastMessageImageGeneration) && isImageModificationRequest;
   
   // 記錄檢測結果
-  if (isBlackAndWhiteRequest) {
-    console.log('檢測到黑白轉換請求:', message.content);
+  if (shouldProcessImageModification) {
+    console.log('檢測到圖片修改請求:', message.content);
     console.log('上一條消息包含圖片附件:', hasImageAttachment);
     console.log('上一條消息是圖片生成:', isLastMessageImageGeneration);
-    console.log('是否視為圖片修改請求:', isImageModificationRequest);
+    console.log('是否處理圖片修改:', shouldProcessImageModification);
   }
 
-  if (isImageModificationRequest) {
+  if (shouldProcessImageModification) {
     // 先發送確認消息
     await message.channel.send('好的，我這就幫你轉換圖片！');
     try {
@@ -2008,13 +2015,14 @@ client.on('messageCreate', async (message) => {
 
       // 根據請求類型處理圖片
        let processedImage;
-       // 更精確地檢測黑白轉換請求
+       // 檢測具體的修改類型
        const isBlackAndWhiteRequest = message.content.match(/(黑白|灰階|灰度)/i) || 
          message.content.match(/改成黑白/i) || 
          message.content.match(/變成黑白/i) || 
          message.content.match(/換成黑白/i) || 
          message.content.match(/轉成黑白/i);
        const isColorRequest = message.content.match(/(彩色|全彩)/i);
+       const isGeneralModificationRequest = message.content.match(/(修改|調整|微調|改一下|調一下|換一下)/i);
        
        if (isBlackAndWhiteRequest) {
          console.log('檢測到黑白轉換請求，開始處理圖片');
@@ -2065,6 +2073,24 @@ client.on('messageCreate', async (message) => {
              name: `color-${lastAttachment.name}`
            }]
          });
+       } else if (isGeneralModificationRequest) {
+         // 如果是一般修改請求，默認轉換為黑白
+         console.log('檢測到一般修改請求，默認轉換為黑白');
+         try {
+            console.log(`開始處理圖片，原始大小: ${imageBuffer.length} 字節`);
+            processedImage = await sharp(imageBuffer, { failOnError: false })
+              .grayscale()
+              .normalize()
+              .gamma(1.2)
+              .jpeg({ quality: 90, progressive: true })
+              .toBuffer();
+            console.log(`黑白轉換完成，處理後圖片大小: ${processedImage.length} 字節`);
+          } catch (sharpError) {
+            console.error('使用 sharp 處理圖片時出錯:', sharpError);
+            processedImage = await sharp(imageBuffer)
+              .grayscale()
+              .toBuffer();
+          }
        } else {
          throw new Error('未指定轉換類型');
        }
@@ -2109,7 +2135,7 @@ client.on('messageCreate', async (message) => {
 
   // 檢查用戶是否想要生成圖片，傳入消息歷史以進行上下文判斷
   // 如果已經識別為圖片修改請求，則不再檢測圖片生成請求
-  if (!isImageModificationRequest) {
+  if (!shouldProcessImageModification) {
     // 檢查是否是黑白轉換請求，如果是，則不檢測圖片生成請求
     const isBlackAndWhiteRequest = message.content.match(/(黑白|灰階|灰度)/i) || 
       message.content.match(/改成黑白/i) || 
@@ -2254,9 +2280,9 @@ client.on('messageCreate', async (message) => {
       // 創建臨時文件名
       const fileName = `gemini-image-${Date.now()}.${fileExtension}`;
       
-      // 發送圖片和響應文本
+      // 發送圖片和響應文本，添加特殊標記以便識別圖片生成消息
       await message.channel.send({
-        content: responseText || '這是根據你的描述生成的圖片：',
+        content: (responseText || '這是根據你的描述生成的圖片：') + ' [IMAGE_GENERATED]',
         files: [{
           attachment: buffer,
           name: fileName
