@@ -2186,6 +2186,17 @@ client.on('messageCreate', async (message) => {
        } else if (isGeneralModificationRequest) {
          // 如果是一般修改請求，默認轉換為黑白
          console.log('檢測到一般修改請求，默認轉換為黑白');
+         
+         // 獲取上一條消息中的圖片附件
+         const previousAttachment = previousMessage.attachments.first();
+         if (!previousAttachment) {
+           console.log('找不到上一條消息中的圖片附件');
+           await message.channel.send('抱歉，我找不到需要修改的圖片。請確保上一條消息中包含圖片。');
+           return;
+         }
+         
+         console.log(`找到上一條消息中的圖片附件: ${previousAttachment.url}`);
+         
          try {
             console.log(`開始處理圖片，原始大小: ${imageBuffer.length} 字節`);
             processedImage = await sharp(imageBuffer, { failOnError: false })
