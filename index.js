@@ -2061,7 +2061,120 @@ client.on('messageCreate', async (message) => {
     if (isBlackAndWhiteRequest && lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0) {
       console.log('檢測到黑白轉換請求，但已有圖片附件，不檢測圖片生成請求');
       // 這是圖片修改請求，不是圖片生成請求
-      return;
+      // 將其標記為圖片修改請求，並執行圖片修改邏輯
+      console.log('將黑白轉換請求重新導向到圖片修改邏輯');
+      // 先發送確認消息
+      await message.channel.send('好的，我這就幫你轉換圖片！');
+      try {
+        // 顯示處理狀態
+        const statusMessage = await message.channel.send('正在轉換圖片，請稍候...');
+
+        // 動態導入 sharp
+        let sharp;
+        try {
+          console.log('開始導入 sharp 模組');
+          const sharpModule = await import('sharp');
+          sharp = sharpModule.default;
+          console.log('成功導入 sharp 模組');
+        } catch (importError) {
+          console.error('導入 sharp 模組失敗:', importError);
+          await statusMessage.delete().catch(console.error);
+          await message.channel.send('抱歉，處理圖片時出現錯誤，無法載入圖片處理模組。');
+          return;
+        }
+
+        // 獲取上一條消息中的圖片
+        const lastAttachment = lastMessage.attachments.first();
+        if (!lastAttachment) {
+          await statusMessage.delete().catch(console.error);
+          await message.channel.send('抱歉，找不到需要修改的圖片。');
+          return;
+        }
+
+        // 下載圖片
+        console.log(`開始下載圖片: ${lastAttachment.url}`);
+        const response = await fetch(lastAttachment.url);
+        const arrayBuffer = await response.arrayBuffer();
+        console.log(`圖片下載完成，大小: ${arrayBuffer.byteLength} 字節`);
+        const imageBuffer = Buffer.from(arrayBuffer);
+
+        // 處理圖片為黑白
+        let processedImage;
+        console.log('檢測到黑白轉換請求，開始處理圖片');
+        try {
+          console.log(`開始處理圖片，原始大小: ${imageBuffer.length} 字節`);
+          // 使用 sharp 進行黑白轉換，添加更多選項以確保穩定性
+          processedImage = await sharp(imageBuffer, { failOnError: false })
+            .grayscale() // 轉換為灰階
+            .normalize() // 標準化對比度
+            .gamma(1.2) // 調整對比度
+            .jpeg({ quality: 90, progressive: true }) // 指定輸出格式和品質，使用漸進式 JPEG
+            .toBuffer();
+          console.log(`黑白轉換完成，處理後圖片大小: ${processedImage.length} 字節`);
+        } catch (sharpError) {
+          console.error('使用 sharp 處理圖片時出錯:', sharpError);
+          // 嘗試使用備用方法處理圖片
+          try {
+            console.log('嘗試使用備用方法處理圖片');
+            // 使用更簡單的處理方式
+            processedImage = await sharp(imageBuffer, { failOnError: false })
+              .grayscale() // 使用正確的方法名
+              .toFormat('jpeg', { quality: 90 }) // 明確指定輸出格式和品質
+              .toBuffer();
+            console.log(`備用方法處理完成，圖片大小: ${processedImage.length} 字節`);
+          } catch (backupError) {
+            console.error('備用方法處理圖片也失敗:', backupError);
+            // 嘗試最後的備用方法
+            try {
+              console.log('嘗試使用最後的備用方法處理圖片');
+              // 使用最簡單的處理方式
+              processedImage = await sharp(imageBuffer)
+                .grayscale()
+                .toBuffer();
+              console.log(`最後備用方法處理完成，圖片大小: ${processedImage.length} 字節`);
+            } catch (finalError) {
+              console.error('所有處理方法都失敗:', finalError);
+              throw new Error(`圖片處理失敗: ${sharpError.message}, 所有備用方法也失敗`);
+            }
+          }
+        }
+
+        // 發送處理後的圖片
+        console.log(`準備發送處理後的圖片，大小: ${processedImage.length} 字節`);
+        try {
+          // 確保文件名有正確的擴展名
+          let fileName = lastAttachment.name;
+          // 如果原始文件名沒有擴展名或擴展名不是圖片格式，添加 .jpg 擴展名
+          if (!fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+            fileName += '.jpg';
+          } else {
+            // 如果有擴展名，替換為 .jpg
+            fileName = fileName.replace(/\.[^.]+$/, '.jpg');
+          }
+          
+          console.log(`發送圖片，文件名: ${fileName}`);
+          await message.channel.send({
+            content: '這是修改後的圖片：',
+            files: [{
+              attachment: processedImage,
+              name: `bw-${fileName}`,
+              description: '黑白處理後的圖片'
+            }]
+          });
+          console.log('成功發送處理後的圖片');
+        } catch (sendError) {
+          console.error('發送處理後圖片時出錯:', sendError);
+          await message.channel.send('抱歉，發送處理後的圖片時出現錯誤，請稍後再試。');
+        }
+
+        // 刪除狀態消息
+        await statusMessage.delete().catch(console.error);
+        return;
+      } catch (error) {
+        console.error('Error modifying image:', error);
+        await message.channel.send('抱歉，處理圖片時出現錯誤，請稍後再試。');
+        return;
+      }
     }
     
     const isImageGenerationRequest = await detectImageGenerationRequest(message.content, channelHistory);
