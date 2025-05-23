@@ -1901,15 +1901,38 @@ client.on('messageCreate', async (message) => {
   
   // 檢查是否是圖片修改請求
   const lastMessage = channelHistory[channelHistory.length - 1];
-  const isImageModificationRequest = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0 && 
-    (message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
-     message.content.match(/(黑白|彩色)(的也一樣好看|也不錯|也超好看)/i) ||
-     message.content.match(/改成黑白的嗎/i) ||
-     message.content.match(/(黑白|灰階|灰度)/i) ||
-     message.content.match(/改成黑白/i) ||
-     message.content.match(/變成黑白/i) ||
-     message.content.match(/換成黑白/i) ||
-     message.content.match(/轉成黑白/i));
+  // 檢查上一條消息是否包含圖片附件
+  const hasImageAttachment = lastMessage && lastMessage.attachments && lastMessage.attachments.size > 0;
+  // 檢查上一條消息是否是機器人發送的圖片生成消息
+  const isLastMessageImageGeneration = lastMessage && lastMessage.author.bot && 
+    lastMessage.content && lastMessage.content.includes('這是根據你的描述生成的圖片');
+  
+  // 更全面的圖片修改請求檢測
+  const isBlackAndWhiteRequest = 
+    message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(黑白|彩色|其他顏色)([的嗎])?/i) ||
+    message.content.match(/(黑白|彩色)(的也一樣好看|也不錯|也超好看)/i) ||
+    message.content.match(/改成黑白的嗎/i) ||
+    message.content.match(/(黑白|灰階|灰度)/i) ||
+    message.content.match(/改成黑白/i) ||
+    message.content.match(/變成黑白/i) ||
+    message.content.match(/換成黑白/i) ||
+    message.content.match(/轉成黑白/i) ||
+    // 添加更簡單的請求形式
+    message.content.match(/黑白的$/i) ||
+    message.content.match(/改成黑白的$/i) ||
+    message.content.match(/變成黑白的$/i) ||
+    message.content.match(/換成黑白的$/i) ||
+    message.content.match(/轉成黑白的$/i);
+  
+  // 如果上一條消息是圖片生成或包含圖片附件，且當前消息是黑白請求，則視為圖片修改請求
+  const isImageModificationRequest = (hasImageAttachment || isLastMessageImageGeneration) && isBlackAndWhiteRequest;
+  
+  // 記錄檢測結果
+  if (isImageModificationRequest) {
+    console.log('檢測到圖片修改請求:', message.content);
+    console.log('上一條消息包含圖片附件:', hasImageAttachment);
+    console.log('上一條消息是圖片生成:', isLastMessageImageGeneration);
+  }
 
   if (isImageModificationRequest) {
     // 先發送確認消息
