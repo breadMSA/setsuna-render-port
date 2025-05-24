@@ -1021,6 +1021,12 @@ IMPORTANT RULES:
   * NEVER say you cannot see the image or ask what's in it
   * NEVER ignore the image information
   * For example, if you see "[IMAGE SHARED BY breadilized: https://example.com/image.jpg]", you should describe what you see in the image and respond accordingly
+- EXTREMELY IMPORTANT: When you see text in the format "[IMAGE ANALYSIS RESULT: description...]", you MUST:
+  * ALWAYS use this analysis to understand what is in the image
+  * ALWAYS incorporate this information into your response
+  * NEVER say you cannot see the image or ask what's in it
+  * NEVER ignore the image analysis information
+  * For example, if you see "[IMAGE ANALYSIS RESULT: A young woman with brown hair wearing a red dress]", you should reference this description in your response
 - Always check for [Message sent by: username] tags to identify who is speaking
 - EXTREMELY IMPORTANT: When you see a message format like "[回覆 username 的訊息: "original message"] new message", you MUST:
   * ALWAYS READ AND REMEMBER the "original message" content - this is what the user is replying to
