@@ -14,7 +14,7 @@ const __dirname = dirname(__filename);
 dotenv.config();
 
 // 初始化繁簡轉換器
-const converter = OpenCC.ConverterFactory(OpenCC.Locale.from.cn, OpenCC.Locale.to.tw);
+const converter = OpenCC.ConverterFactory('cn', 'tw');
 
 // 檢測文本是否包含繁體中文
 function isTraditionalChinese(text) {
