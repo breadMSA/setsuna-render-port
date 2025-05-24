@@ -84,9 +84,9 @@ async function generateImage(prompt, imageUrl = null) {
         }
       ];
       
-      // 使用 gemini-1.5-flash-preview 模型，它支持圖像輸入
+      // 使用 gemini-pro-vision 模型，它支持圖像輸入
       requestConfig = {
-        model: "gemini-1.5-flash-preview",
+        model: "gemini-2.0-flash-preview-image-generation",
         contents,
         config: {
           responseModalities: [Modality.TEXT, Modality.IMAGE],
