@@ -1,9 +1,17 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
-const fetch = require('node-fetch');
-const OpenCC = require('opencc-js');
-const path = require('path');
-const { exec } = require('child_process');
+import dotenv from 'dotenv';
+import { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } from 'discord.js';
+import fetch from 'node-fetch';
+import OpenCC from 'opencc-js';
+import path from 'path';
+import { exec } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// 獲取當前文件的目錄
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
 
 // 初始化繁簡轉換器
 const converter = OpenCC.Converter({ from: 'cn', to: 'tw' });
@@ -1021,12 +1029,6 @@ IMPORTANT RULES:
   * NEVER say you cannot see the image or ask what's in it
   * NEVER ignore the image information
   * For example, if you see "[IMAGE SHARED BY breadilized: https://example.com/image.jpg]", you should describe what you see in the image and respond accordingly
-- EXTREMELY IMPORTANT: When you see text in the format "[IMAGE ANALYSIS RESULT: description...]", you MUST:
-  * ALWAYS use this analysis to understand what is in the image
-  * ALWAYS incorporate this information into your response
-  * NEVER say you cannot see the image or ask what's in it
-  * NEVER ignore the image analysis information
-  * For example, if you see "[IMAGE ANALYSIS RESULT: A young woman with brown hair wearing a red dress]", you should reference this description in your response
 - Always check for [Message sent by: username] tags to identify who is speaking
 - EXTREMELY IMPORTANT: When you see a message format like "[回覆 username 的訊息: "original message"] new message", you MUST:
   * ALWAYS READ AND REMEMBER the "original message" content - this is what the user is replying to
@@ -1535,7 +1537,7 @@ async function generateImageWithGemini(prompt, imageUrl = null) {
     
     // 構建命令，將 prompt 和 API 密鑰作為參數傳遞給 genimg.mjs
     // 使用雙引號包裹 prompt，以處理包含空格和特殊字符的情況
-    let command = `node "${__dirname}/genimg.mjs"`;
+    let command = `node --experimental-modules "${__dirname}/genimg.mjs"`;
     
     // 如果有 API 密鑰，則添加到命令中
     if (apiKey) {
@@ -2038,8 +2040,8 @@ client.on('messageCreate', async (message) => {
       let sharp;
       try {
         console.log('開始導入 sharp 模組');
-        const sharpModule = await import('sharp');
-        sharp = sharpModule.default;
+        const { default: sharpModule } = await import('sharp');
+        sharp = sharpModule;
         console.log('成功導入 sharp 模組');
       } catch (importError) {
         console.error('導入 sharp 模組失敗:', importError);
