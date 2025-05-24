@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } from 'discord.js';
 import fetch from 'node-fetch';
-import OpenCC from 'opencc-js';
+import { OpenCC } from 'opencc-js';
 import path from 'path';
 import { exec } from 'child_process';
 import { fileURLToPath } from 'url';
