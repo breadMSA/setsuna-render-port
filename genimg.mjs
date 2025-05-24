@@ -86,7 +86,7 @@ async function generateImage(prompt, imageUrl = null) {
       
       // 使用 gemini-pro-vision 模型，它支持圖像輸入
       requestConfig = {
-        model: "gemini-2.0-flash-preview-image-generation",
+        model: "gemini-pro-vision",
         contents,
         config: {
           responseModalities: [Modality.TEXT, Modality.IMAGE],
