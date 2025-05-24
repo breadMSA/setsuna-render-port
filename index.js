@@ -2223,8 +2223,10 @@ client.on('messageCreate', async (message) => {
       // 發送處理後的圖片
       console.log(`準備發送處理後的圖片，大小: ${processedImage.length} 字節`);
       try {
+        // 獲取上一條消息中的圖片附件（用於文件名）
+        const attachmentForFileName = previousMessage.attachments.first();
         // 確保文件名有正確的擴展名
-        let fileName = previousAttachment.name;
+        let fileName = attachmentForFileName ? attachmentForFileName.name : 'processed-image.jpg';
         // 如果原始文件名沒有擴展名或擴展名不是圖片格式，添加 .jpg 擴展名
         if (!fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
           fileName += '.jpg';
