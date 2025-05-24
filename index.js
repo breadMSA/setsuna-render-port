@@ -2184,8 +2184,8 @@ client.on('messageCreate', async (message) => {
            return;
          }
        } else if (isGeneralModificationRequest) {
-         // 如果是一般修改請求，默認轉換為黑白
-         console.log('檢測到一般修改請求，默認轉換為黑白');
+         // 如果是一般修改請求，使用 Gemini 根據用戶的具體要求進行修改
+         console.log('檢測到一般修改請求，使用 Gemini 進行圖片修改');
          
          // 獲取上一條消息中的圖片附件
          const previousAttachment = previousMessage.attachments.first();
@@ -2198,24 +2198,26 @@ client.on('messageCreate', async (message) => {
          console.log(`找到上一條消息中的圖片附件: ${previousAttachment.url}`);
          
          try {
-            // 獲取圖片數據
-            const response = await fetch(previousAttachment.url);
-            const imageBuffer = await response.buffer();
-            
-            console.log(`開始處理圖片，原始大小: ${imageBuffer.length} 字節`);
-            processedImage = await sharp(imageBuffer, { failOnError: false })
-              .grayscale()
-              .normalize()
-              .gamma(1.2)
-              .jpeg({ quality: 90, progressive: true })
-              .toBuffer();
-            console.log(`黑白轉換完成，處理後圖片大小: ${processedImage.length} 字節`);
-          } catch (sharpError) {
-            console.error('使用 sharp 處理圖片時出錯:', sharpError);
-            processedImage = await sharp(imageBuffer)
-              .grayscale()
-              .toBuffer();
-          }
+           // 使用用戶的原始請求作為提示詞
+           const modificationPrompt = `請根據以下要求修改圖片：${message.content}，保持原圖的主要內容和構圖`;
+           console.log(`使用提示詞進行圖片修改: ${modificationPrompt}`);
+           
+           // 使用 Gemini 生成修改後的圖片
+           const { imageData, mimeType } = await generateImageWithGemini(modificationPrompt, previousAttachment.url);
+           
+           // 發送生成的圖片
+           return await message.channel.send({
+             content: `這是根據你的要求修改後的圖片：`,
+             files: [{
+               attachment: Buffer.from(imageData, 'base64'),
+               name: `modified-${previousAttachment.name}`
+             }]
+           });
+         } catch (error) {
+           console.error('使用 Gemini 修改圖片時出錯:', error);
+           await message.channel.send(`抱歉，我無法按照你的要求修改圖片。錯誤信息: ${error.message}`);
+           return;
+         }
        } else {
          throw new Error('未指定轉換類型');
        }
