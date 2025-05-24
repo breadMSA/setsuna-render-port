@@ -1994,7 +1994,7 @@ client.on('messageCreate', async (message) => {
     message.content.match(/^(改|換|轉|變)成灰度/i) ||
     
     // 風格相關的修改請求
-    message.content.match(/可以(幫我)?(改|換|轉|變|多|加)成(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果|的)([的嗎])?/i) ||
+    message.content.match(/可以(幫我)?(改|換|轉|變|多|加|把)成(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果|的)([的嗎])?/i) ||
     message.content.match(/(改|換|轉|變)成(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果|的)?/i) ||
     message.content.match(/(動漫|寫實|卡通|素描|油畫|水彩|像素|復古|現代|未來|科幻|奇幻|可愛|恐怖|溫馨|冷酷|溫暖|冷色|暖色|明亮|暗沉|高對比|低對比|高飽和|低飽和|黑白|彩色|單色|多色|藝術|寫意|寫實|抽象|具象|印象派|表現派|立體派|超現實|極簡|繁複|浮世繪|國畫|西洋畫|插畫|漫畫|素描|速寫|版畫|蝕刻|水墨|彩墨|粉彩|炭筆|鉛筆|鋼筆|毛筆|噴槍|數位|傳統|混合|其他)(風格|風|樣子|樣式|感覺|效果)/i) ||
     
@@ -2446,31 +2446,75 @@ client.on('messageCreate', async (message) => {
       
       console.log(`Detected image attachment from ${message.author.username}: \n${imageAttachmentInfo}`);
       
-      // 自動處理所有圖片附件進行OCR識別，不需要關鍵詞觸發
-        // 顯示正在處理OCR的提示
-        const statusMessage = await message.channel.send('正在識別圖片中的文字，請稍候...');
+      // 智能處理圖片附件 - 根據用戶消息內容決定處理方式
+        const userMessage = message.content.toLowerCase();
+        let processingMode = 'auto'; // auto, ocr, describe, analyze, question
+        
+        // 根據用戶消息判斷處理模式
+        if (userMessage.includes('文字') || userMessage.includes('識別') || userMessage.includes('ocr') || userMessage.includes('讀取')) {
+          processingMode = 'ocr';
+        } else if (userMessage.includes('描述') || userMessage.includes('說明') || userMessage.includes('內容') || userMessage.includes('看到')) {
+          processingMode = 'describe';
+        } else if (userMessage.includes('分析') || userMessage.includes('解釋') || userMessage.includes('什麼') || userMessage.includes('這是')) {
+          processingMode = 'analyze';
+        } else if (userMessage.includes('?') || userMessage.includes('？') || userMessage.includes('問') || userMessage.includes('如何') || userMessage.includes('為什麼')) {
+          processingMode = 'question';
+        }
+        
+        // 顯示處理提示
+        let statusText = '正在處理圖片，請稍候...';
+        if (processingMode === 'ocr') statusText = '正在識別圖片中的文字，請稍候...';
+        else if (processingMode === 'describe') statusText = '正在描述圖片內容，請稍候...';
+        else if (processingMode === 'analyze') statusText = '正在分析圖片，請稍候...';
+        else if (processingMode === 'question') statusText = '正在理解圖片並回答問題，請稍候...';
+        
+        const statusMessage = await message.channel.send(statusText);
         
         try {
-          // 動態導入OCR模塊
-          const { extractTextFromImage } = await import('./ocr.js');
+          // 動態導入圖像理解模塊
+        const { extractTextFromImage, describeImage, analyzeImage, askAboutImage } = await import('./image-understanding.js');
           
           // 處理每個圖片附件
-          const ocrResults = [];
+          const results = [];
           for (const attachment of imageAttachments.values()) {
-            console.log(`Processing OCR for image: ${attachment.url}`);
+            console.log(`Processing image with mode '${processingMode}': ${attachment.url}`);
             
-            // 使用OCR模塊識別文字
-            const result = await extractTextFromImage(attachment.url);
+            let result;
+            switch (processingMode) {
+              case 'ocr':
+                result = await extractTextFromImage(attachment.url);
+                break;
+              case 'describe':
+                result = await describeImage(attachment.url);
+                break;
+              case 'analyze':
+                result = await analyzeImage(attachment.url);
+                break;
+              case 'question':
+                result = await askAboutImage(attachment.url, userMessage);
+                break;
+              default: // auto mode - 先嘗試OCR，如果沒有文字則描述圖片
+                result = await extractTextFromImage(attachment.url);
+                if (result.success && result.text.trim()) {
+                  // 有文字，使用OCR結果
+                } else {
+                  // 沒有文字，改為描述圖片
+                  result = await describeImage(attachment.url);
+                }
+                break;
+            }
             
             if (result.success) {
-              ocrResults.push({
+              results.push({
                 url: attachment.url,
-                text: result.text
+                text: result.text,
+                mode: processingMode
               });
             } else {
-              ocrResults.push({
+              results.push({
                 url: attachment.url,
-                error: result.error || '識別失敗'
+                error: result.error || '處理失敗',
+                mode: processingMode
               });
             }
           }
@@ -2478,30 +2522,48 @@ client.on('messageCreate', async (message) => {
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
           
-          // 發送OCR結果
-          if (ocrResults.length > 0) {
-            const successResults = ocrResults.filter(r => r.text);
+          // 處理結果
+          if (results.length > 0) {
+            const successResults = results.filter(r => r.text);
             
             if (successResults.length > 0) {
-              // 將識別結果添加到消息內容中
-              const ocrText = successResults.map(r => r.text).join('\n\n');
-              const ocrInfo = `\n\n[OCR RESULT FROM IMAGE:\n${ocrText}]\n\n`;
+              // 將結果添加到消息內容中
+              const resultText = successResults.map(r => r.text).join('\n\n');
+              let resultInfo;
+              
+              switch (processingMode) {
+                case 'ocr':
+                  resultInfo = `\n\n[圖片文字識別結果:\n${resultText}]\n\n`;
+                  break;
+                case 'describe':
+                  resultInfo = `\n\n[圖片內容描述:\n${resultText}]\n\n`;
+                  break;
+                case 'analyze':
+                  resultInfo = `\n\n[圖片分析結果:\n${resultText}]\n\n`;
+                  break;
+                case 'question':
+                  resultInfo = `\n\n[圖片問答結果:\n${resultText}]\n\n`;
+                  break;
+                default:
+                  resultInfo = `\n\n[圖片理解結果:\n${resultText}]\n\n`;
+                  break;
+              }
               
               // 更新消息內容
-              message.content = message.content + ocrInfo;
+              message.content = message.content + resultInfo;
               
-              // 保存OCR結果，稍後添加到消息歷史中
-              message._ocrInfo = ocrInfo;
+              // 保存結果，稍後添加到消息歷史中
+              message._imageAnalysisInfo = resultInfo;
               
-              console.log(`Added OCR results to message content: ${ocrText.substring(0, 100)}...`);
+              console.log(`Added image analysis results to message content: ${resultText.substring(0, 100)}...`);
             } else {
-              console.log('No text could be recognized from the images');
+              console.log('No results could be obtained from the images');
             }
           } else {
-            console.log('No OCR results were processed');
+            console.log('No image analysis results were processed');
           }
         } catch (error) {
-          console.error('Error processing OCR:', error);
+          console.error('Error processing image analysis:', error);
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
         }
@@ -2723,15 +2785,15 @@ if (isReply) {
     }
   }
   
-  // 如果有 OCR 識別結果，將其添加到消息歷史中
-  if (message._ocrInfo) {
+  // 如果有圖像分析結果，將其添加到消息歷史中
+  if (message._imageAnalysisInfo) {
     for (let i = 0; i < messageHistory.length; i++) {
       if (
         messageHistory[i].role === 'user' &&
         messageHistory[i].author === message.author.username
       ) {
-        messageHistory[i].content = messageHistory[i].content + message._ocrInfo;
-          console.log(`Updated message history with OCR results for ${message.author.username}`);
+        messageHistory[i].content = messageHistory[i].content + message._imageAnalysisInfo;
+          console.log(`Updated message history with image analysis results for ${message.author.username}`);
         break;
       }
     }
