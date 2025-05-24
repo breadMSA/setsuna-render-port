@@ -2446,75 +2446,39 @@ client.on('messageCreate', async (message) => {
       
       console.log(`Detected image attachment from ${message.author.username}: \n${imageAttachmentInfo}`);
       
-      // 智能處理圖片附件 - 根據用戶消息內容決定處理方式
-        const userMessage = message.content.toLowerCase();
-        let processingMode = 'auto'; // auto, ocr, describe, analyze, question
-        
-        // 根據用戶消息判斷處理模式
-        if (userMessage.includes('文字') || userMessage.includes('識別') || userMessage.includes('ocr') || userMessage.includes('讀取')) {
-          processingMode = 'ocr';
-        } else if (userMessage.includes('描述') || userMessage.includes('說明') || userMessage.includes('內容') || userMessage.includes('看到')) {
-          processingMode = 'describe';
-        } else if (userMessage.includes('分析') || userMessage.includes('解釋') || userMessage.includes('什麼') || userMessage.includes('這是')) {
-          processingMode = 'analyze';
-        } else if (userMessage.includes('?') || userMessage.includes('？') || userMessage.includes('問') || userMessage.includes('如何') || userMessage.includes('為什麼')) {
-          processingMode = 'question';
-        }
-        
-        // 顯示處理提示
-        let statusText = '正在處理圖片，請稍候...';
-        if (processingMode === 'ocr') statusText = '正在識別圖片中的文字，請稍候...';
-        else if (processingMode === 'describe') statusText = '正在描述圖片內容，請稍候...';
-        else if (processingMode === 'analyze') statusText = '正在分析圖片，請稍候...';
-        else if (processingMode === 'question') statusText = '正在理解圖片並回答問題，請稍候...';
-        
-        const statusMessage = await message.channel.send(statusText);
+      // 自動處理所有圖片附件進行圖像理解，不需要關鍵詞觸發
+      // 顯示正在處理圖像理解的提示
+        const statusMessage = await message.channel.send('正在分析圖片內容，請稍候...');
         
         try {
           // 動態導入圖像理解模塊
-        const { extractTextFromImage, describeImage, analyzeImage, askAboutImage } = await import('./image-understanding.js');
+          const { analyzeImage } = await import('./image_understanding.js');
+          
+          // 獲取 Gemini API 密鑰
+          let apiKey = process.env.GEMINI_API_KEY;
+          
+          // 如果環境變數中沒有，則嘗試從 GEMINI_API_KEYS 數組中獲取
+          if (!apiKey && GEMINI_API_KEYS && GEMINI_API_KEYS.length > 0) {
+            apiKey = GEMINI_API_KEYS[currentGeminiKeyIndex];
+          }
           
           // 處理每個圖片附件
-          const results = [];
+          const imageResults = [];
           for (const attachment of imageAttachments.values()) {
-            console.log(`Processing image with mode '${processingMode}': ${attachment.url}`);
+            console.log(`Processing image understanding for: ${attachment.url}`);
             
-            let result;
-            switch (processingMode) {
-              case 'ocr':
-                result = await extractTextFromImage(attachment.url);
-                break;
-              case 'describe':
-                result = await describeImage(attachment.url);
-                break;
-              case 'analyze':
-                result = await analyzeImage(attachment.url);
-                break;
-              case 'question':
-                result = await askAboutImage(attachment.url, userMessage);
-                break;
-              default: // auto mode - 先嘗試OCR，如果沒有文字則描述圖片
-                result = await extractTextFromImage(attachment.url);
-                if (result.success && result.text.trim()) {
-                  // 有文字，使用OCR結果
-                } else {
-                  // 沒有文字，改為描述圖片
-                  result = await describeImage(attachment.url);
-                }
-                break;
-            }
+            // 使用圖像理解模塊分析圖片
+            const result = await analyzeImage(attachment.url, apiKey);
             
             if (result.success) {
-              results.push({
+              imageResults.push({
                 url: attachment.url,
-                text: result.text,
-                mode: processingMode
+                description: result.description
               });
             } else {
-              results.push({
+              imageResults.push({
                 url: attachment.url,
-                error: result.error || '處理失敗',
-                mode: processingMode
+                error: result.error || '分析失敗'
               });
             }
           }
@@ -2522,42 +2486,24 @@ client.on('messageCreate', async (message) => {
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
           
-          // 處理結果
-          if (results.length > 0) {
-            const successResults = results.filter(r => r.text);
+          // 發送圖像理解結果
+          if (imageResults.length > 0) {
+            const successResults = imageResults.filter(r => r.description);
             
             if (successResults.length > 0) {
-              // 將結果添加到消息內容中
-              const resultText = successResults.map(r => r.text).join('\n\n');
-              let resultInfo;
-              
-              switch (processingMode) {
-                case 'ocr':
-                  resultInfo = `\n\n[圖片文字識別結果:\n${resultText}]\n\n`;
-                  break;
-                case 'describe':
-                  resultInfo = `\n\n[圖片內容描述:\n${resultText}]\n\n`;
-                  break;
-                case 'analyze':
-                  resultInfo = `\n\n[圖片分析結果:\n${resultText}]\n\n`;
-                  break;
-                case 'question':
-                  resultInfo = `\n\n[圖片問答結果:\n${resultText}]\n\n`;
-                  break;
-                default:
-                  resultInfo = `\n\n[圖片理解結果:\n${resultText}]\n\n`;
-                  break;
-              }
+              // 將分析結果添加到消息內容中
+              const imageText = successResults.map(r => r.description).join('\n\n');
+              const imageInfo = `\n\n[IMAGE ANALYSIS RESULT:\n${imageText}]\n\n`;
               
               // 更新消息內容
-              message.content = message.content + resultInfo;
+              message.content = message.content + imageInfo;
               
-              // 保存結果，稍後添加到消息歷史中
-              message._imageAnalysisInfo = resultInfo;
+              // 保存圖像分析結果，稍後添加到消息歷史中
+              message._imageInfo = imageInfo;
               
-              console.log(`Added image analysis results to message content: ${resultText.substring(0, 100)}...`);
+              console.log(`Added image analysis results to message content: ${imageText.substring(0, 100)}...`);
             } else {
-              console.log('No results could be obtained from the images');
+              console.log('No content could be analyzed from the images');
             }
           } else {
             console.log('No image analysis results were processed');
@@ -2786,14 +2732,27 @@ if (isReply) {
   }
   
   // 如果有圖像分析結果，將其添加到消息歷史中
-  if (message._imageAnalysisInfo) {
+  if (message._imageInfo) {
     for (let i = 0; i < messageHistory.length; i++) {
       if (
         messageHistory[i].role === 'user' &&
         messageHistory[i].author === message.author.username
       ) {
-        messageHistory[i].content = messageHistory[i].content + message._imageAnalysisInfo;
+        messageHistory[i].content = messageHistory[i].content + message._imageInfo;
           console.log(`Updated message history with image analysis results for ${message.author.username}`);
+        break;
+      }
+    }
+  }
+  // 如果有 OCR 識別結果，將其添加到消息歷史中（保留向後兼容性）
+  else if (message._ocrInfo) {
+    for (let i = 0; i < messageHistory.length; i++) {
+      if (
+        messageHistory[i].role === 'user' &&
+        messageHistory[i].author === message.author.username
+      ) {
+        messageHistory[i].content = messageHistory[i].content + message._ocrInfo;
+          console.log(`Updated message history with OCR results for ${message.author.username}`);
         break;
       }
     }
