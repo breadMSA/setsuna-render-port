@@ -1,20 +1,12 @@
-import dotenv from 'dotenv';
-import { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } from 'discord.js';
-import fetch from 'node-fetch';
-import * as OpenCC from 'opencc-js/core';
-import path from 'path';
-import { exec } from 'child_process';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-// 獲取當前文件的目錄
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-dotenv.config();
+require('dotenv').config();
+const { Client, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
+const fetch = require('node-fetch');
+const OpenCC = require('opencc-js');
+const path = require('path');
+const { exec } = require('child_process');
 
 // 初始化繁簡轉換器
-const converter = OpenCC.ConverterFactory('cn', 'tw');
+const converter = OpenCC.Converter({ from: 'cn', to: 'tw' });
 
 // 檢測文本是否包含繁體中文
 function isTraditionalChinese(text) {
@@ -1537,7 +1529,7 @@ async function generateImageWithGemini(prompt, imageUrl = null) {
     
     // 構建命令，將 prompt 和 API 密鑰作為參數傳遞給 genimg.mjs
     // 使用雙引號包裹 prompt，以處理包含空格和特殊字符的情況
-    let command = `node --experimental-modules "${__dirname}/genimg.mjs"`;
+    let command = `node "${__dirname}/genimg.mjs"`;
     
     // 如果有 API 密鑰，則添加到命令中
     if (apiKey) {
@@ -2040,8 +2032,8 @@ client.on('messageCreate', async (message) => {
       let sharp;
       try {
         console.log('開始導入 sharp 模組');
-        const { default: sharpModule } = await import('sharp');
-        sharp = sharpModule;
+        const sharpModule = await import('sharp');
+        sharp = sharpModule.default;
         console.log('成功導入 sharp 模組');
       } catch (importError) {
         console.error('導入 sharp 模組失敗:', importError);
@@ -2454,70 +2446,53 @@ client.on('messageCreate', async (message) => {
       
       console.log(`Detected image attachment from ${message.author.username}: \n${imageAttachmentInfo}`);
       
-      // 自動處理所有圖片附件進行圖像理解，不需要關鍵詞觸發
-      // 顯示正在處理圖像理解的提示
-        const statusMessage = await message.channel.send('正在分析圖片內容，請稍候...');
+      // 自動處理所有圖片附件進行內容識別，不需要關鍵詞觸發
+        // 顯示正在處理圖片識別的提示
+        const statusMessage = await message.channel.send('正在識別圖片內容，請稍候...');
         
         try {
-          // 動態導入圖像理解模塊
-          const { analyzeImage } = await import('./image_understanding.js');
+          // 動態導入圖片識別模塊
+          const { recognizeMultipleImages } = await import('./image_recognition.js');
           
-          // 獲取 Gemini API 密鑰
-          let apiKey = process.env.GEMINI_API_KEY;
+          // 收集所有圖片 URL
+          const imageUrls = Array.from(imageAttachments.values()).map(attachment => attachment.url);
           
-          // 如果環境變數中沒有，則嘗試從 GEMINI_API_KEYS 數組中獲取
-          if (!apiKey && GEMINI_API_KEYS && GEMINI_API_KEYS.length > 0) {
-            apiKey = GEMINI_API_KEYS[currentGeminiKeyIndex];
-          }
+          console.log(`Processing image recognition for ${imageUrls.length} images`);
           
-          // 處理每個圖片附件
-          const imageResults = [];
-          for (const attachment of imageAttachments.values()) {
-            console.log(`Processing image understanding for: ${attachment.url}`);
-            
-            // 使用圖像理解模塊分析圖片
-            const result = await analyzeImage(attachment.url, apiKey);
-            
-            if (result.success) {
-              imageResults.push({
-                url: attachment.url,
-                description: result.description
-              });
-            } else {
-              imageResults.push({
-                url: attachment.url,
-                error: result.error || '分析失敗'
-              });
-            }
-          }
+          // 使用 Google GenAI 識別圖片內容
+          const recognitionResults = await recognizeMultipleImages(imageUrls);
           
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
           
-          // 發送圖像理解結果
-          if (imageResults.length > 0) {
-            const successResults = imageResults.filter(r => r.description);
+          // 處理識別結果
+          if (recognitionResults.length > 0) {
+            const successResults = recognitionResults.filter(r => r.success && r.description);
             
             if (successResults.length > 0) {
-              // 將分析結果添加到消息內容中
-              const imageText = successResults.map(r => r.description).join('\n\n');
-              const imageInfo = `\n\n[IMAGE ANALYSIS RESULT:\n${imageText}]\n\n`;
+              // 將識別結果添加到消息內容中
+              const recognitionText = successResults.map((r, index) => {
+                const imageNumber = successResults.length > 1 ? `圖片 ${index + 1}：` : '';
+                return `${imageNumber}${r.description}`;
+              }).join('\n\n');
+              
+              const recognitionInfo = `\n\n[圖片內容識別結果：\n${recognitionText}]\n\n`;
               
               // 更新消息內容
-              message.content = message.content + imageInfo;
+              message.content = message.content + recognitionInfo;
               
-              // 保存圖像分析結果，稍後添加到消息歷史中
-              message._imageInfo = imageInfo;
+              // 保存識別結果，稍後添加到消息歷史中
+              message._recognitionInfo = recognitionInfo;
               
-              console.log(`Added image analysis results to message content: ${imageText.substring(0, 100)}...`);
+              console.log(`Added image recognition results to message content: ${recognitionText.substring(0, 100)}...`);
             } else {
-              console.log('No content could be analyzed from the images');
+              console.log('No content could be recognized from the images');
             }
           } else {
-            console.log('No image analysis results were processed');
+            console.log('No recognition results were processed');
           }
         } catch (error) {
-          console.error('Error processing image analysis:', error);
+          console.error('Error processing image recognition:', error);
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
         }
@@ -2739,21 +2714,8 @@ if (isReply) {
     }
   }
   
-  // 如果有圖像分析結果，將其添加到消息歷史中
-  if (message._imageInfo) {
-    for (let i = 0; i < messageHistory.length; i++) {
-      if (
-        messageHistory[i].role === 'user' &&
-        messageHistory[i].author === message.author.username
-      ) {
-        messageHistory[i].content = messageHistory[i].content + message._imageInfo;
-          console.log(`Updated message history with image analysis results for ${message.author.username}`);
-        break;
-      }
-    }
-  }
-  // 如果有 OCR 識別結果，將其添加到消息歷史中（保留向後兼容性）
-  else if (message._ocrInfo) {
+  // 如果有 OCR 識別結果，將其添加到消息歷史中
+  if (message._ocrInfo) {
     for (let i = 0; i < messageHistory.length; i++) {
       if (
         messageHistory[i].role === 'user' &&

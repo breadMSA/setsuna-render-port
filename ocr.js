@@ -1,24 +1,16 @@
 // OCR模塊 - 使用Tesseract.js進行圖片文字識別
-import { createWorker } from 'tesseract.js';
-import fetch from 'node-fetch';
-import fs from 'fs';
-import path from 'path';
-import { promisify } from 'util';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-// 獲取當前文件的目錄
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
+const { createWorker } = require('tesseract.js');
+const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
+const { promisify } = require('util');
 const writeFileAsync = promisify(fs.writeFile);
 const unlinkAsync = promisify(fs.unlink);
 
 // 嘗試導入 sharp 庫進行圖像預處理
 let sharp;
 try {
-  sharp = await import('sharp');
-  sharp = sharp.default;
+  sharp = require('sharp');
 } catch (error) {
   console.warn('Sharp library not available, image preprocessing will be skipped');
   sharp = null;
@@ -183,4 +175,6 @@ async function extractTextFromImage(imageUrl, lang = 'eng+chi_tra') {
   }
 }
 
-export { extractTextFromImage };
+module.exports = {
+  extractTextFromImage
+};
