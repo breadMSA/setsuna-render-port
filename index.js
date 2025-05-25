@@ -901,6 +901,11 @@ client.on('interactionCreate', async interaction => {
       // Set the model preference for this channel
       channelModelPreferences.set(targetChannel.id, model);
       
+      // If Cerebras is selected, save the specific model preference
+      if (model === 'cerebras') {
+        channelCerebrasModelPreferences.set(targetChannel.id, cerebrasModel);
+      }
+      
       // Save to file
       saveActiveChannels();
       
