@@ -113,6 +113,9 @@ const defaultGroqModel = 'gemma2-9b-it';
 // Default Cerebras model to use if no preference is set
 const defaultCerebrasModel = 'llama-4-scout-17b-16e-instruct';
 
+// Map to store channel-specific personality preferences
+const channelPersonalityPreferences = new Map();
+
 // Available Groq models
 const availableGroqModels = [
   'gemma2-9b-it',
@@ -288,8 +291,18 @@ async function loadActiveChannels() {
             channelGroqModelPreferences.set(channelId, config.groqModel);
           }
           
-          // Remove model and groqModel from config to avoid duplication
-          const { model, groqModel, ...restConfig } = config;
+          // Extract Cerebras model preference if it exists
+          if (config.cerebrasModel) {
+            channelCerebrasModelPreferences.set(channelId, config.cerebrasModel);
+          }
+          
+          // Extract personality preference if it exists
+          if (config.personality) {
+            channelPersonalityPreferences.set(channelId, config.personality);
+          }
+          
+          // Remove model, groqModel, cerebrasModel, and personality from config to avoid duplication
+          const { model, groqModel, cerebrasModel, personality, ...restConfig } = config;
           activeChannels.set(channelId, restConfig);
         } else {
           activeChannels.set(channelId, config);
@@ -326,8 +339,18 @@ async function loadActiveChannels() {
               channelGroqModelPreferences.set(channelId, config.groqModel);
             }
             
-            // Remove model and groqModel from config to avoid duplication
-            const { model, groqModel, ...restConfig } = config;
+            // Extract Cerebras model preference if it exists
+            if (config.cerebrasModel) {
+              channelCerebrasModelPreferences.set(channelId, config.cerebrasModel);
+            }
+            
+            // Extract personality preference if it exists
+            if (config.personality) {
+              channelPersonalityPreferences.set(channelId, config.personality);
+            }
+            
+            // Remove model, groqModel, cerebrasModel, and personality from config to avoid duplication
+            const { model, groqModel, cerebrasModel, personality, ...restConfig } = config;
             activeChannels.set(channelId, restConfig);
           } else {
             activeChannels.set(channelId, config);
@@ -361,8 +384,18 @@ async function loadActiveChannels() {
               channelGroqModelPreferences.set(channelId, config.groqModel);
             }
             
-            // Remove model and groqModel from config to avoid duplication
-            const { model, groqModel, ...restConfig } = config;
+            // Extract Cerebras model preference if it exists
+            if (config.cerebrasModel) {
+              channelCerebrasModelPreferences.set(channelId, config.cerebrasModel);
+            }
+            
+            // Extract personality preference if it exists
+            if (config.personality) {
+              channelPersonalityPreferences.set(channelId, config.personality);
+            }
+            
+            // Remove model, groqModel, cerebrasModel, and personality from config to avoid duplication
+            const { model, groqModel, cerebrasModel, personality, ...restConfig } = config;
             activeChannels.set(channelId, restConfig);
           } else {
             activeChannels.set(channelId, config);
@@ -389,8 +422,14 @@ async function saveActiveChannels() {
       data[channelId] = {
         ...config,
         model: channelModelPreferences.get(channelId) || defaultModel,
-        groqModel: channelGroqModelPreferences.get(channelId) || defaultGroqModel
+        groqModel: channelGroqModelPreferences.get(channelId) || defaultGroqModel,
+        cerebrasModel: channelCerebrasModelPreferences.get(channelId) || defaultCerebrasModel
       };
+      
+      // Add personality if it exists for this channel
+      if (channelPersonalityPreferences.has(channelId)) {
+        data[channelId].personality = channelPersonalityPreferences.get(channelId);
+      }
     }
     
     // Save to local file
@@ -596,6 +635,37 @@ const commands = [
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('setpersonality')
+        .setDescription('Set a custom personality for Setsuna in a channel')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to set personality for (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+        .addStringOption(option =>
+          option
+            .setName('personality')
+            .setDescription('The custom personality prompt for Setsuna')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('checkpersonality')
+        .setDescription('Check the current personality settings for Setsuna in a channel')
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to check personality for (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
         .addStringOption(option =>
           option
             .setName('cerebras_model')
@@ -615,7 +685,7 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-    )
+    
     .addSubcommand(subcommand =>
       subcommand
         .setName('checkmodel')
@@ -966,6 +1036,62 @@ client.on('interactionCreate', async interaction => {
         content: `Current AI model for ${targetChannel}: **${modelInfo}**`,
         flags: 64
       });
+    } else if (subcommand === 'setpersonality') {
+      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+      const personality = interaction.options.getString('personality');
+      
+      // Check if the channel is active
+      if (!activeChannels.has(targetChannel.id)) {
+        await interaction.reply({
+          content: `I haven't been activated in ${targetChannel}! Use \`/setsuna activate\` to activate me first.`,
+          flags: 64
+        });
+        return;
+      }
+      
+      // Set the personality preference for this channel
+      channelPersonalityPreferences.set(targetChannel.id, personality);
+      
+      // Save to file
+      saveActiveChannels();
+      
+      // Reply with confirmation
+      await interaction.reply({
+        content: `My personality has been updated in ${targetChannel}! I'll use this personality for future conversations.`,
+        ephemeral: true
+      });
+    } else if (subcommand === 'checkpersonality') {
+      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+      
+      // Check if the channel is active
+      if (!activeChannels.has(targetChannel.id)) {
+        await interaction.reply({
+          content: `I haven't been activated in ${targetChannel}! Use \`/setsuna activate\` to activate me first.`,
+          flags: 64
+        });
+        return;
+      }
+      
+      // Get the personality preference for this channel
+      const personality = channelPersonalityPreferences.get(targetChannel.id);
+      
+      if (personality) {
+        // Reply with the current personality (truncated if too long)
+        const maxLength = 1900; // Discord message limit is 2000, leave some room for the rest of the message
+        const displayPersonality = personality.length > maxLength 
+          ? personality.substring(0, maxLength) + '... (truncated)' 
+          : personality;
+        
+        await interaction.reply({
+          content: `My current personality in ${targetChannel} is:\n\n\`\`\`\n${displayPersonality}\n\`\`\``,
+          ephemeral: true
+        });
+      } else {
+        await interaction.reply({
+          content: `I'm using my default personality in ${targetChannel}.`,
+          ephemeral: true
+        });
+      }
     }
   } else if (interaction.commandName === 'reset') {
     const subcommand = interaction.options.getSubcommand();
@@ -2937,9 +3063,12 @@ if (isReply) {
   
   // Process with selected API
   try {
+    // Get channel's personality or use default
+    const channelPersonality = channelPersonalityPreferences.get(message.channelId) || setsunaPersonality;
+    
     // Add personality prompt as system message
     const formattedMessages = [
-      { role: 'system', content: setsunaPersonality },
+      { role: 'system', content: channelPersonality },
       ...messageHistory.map(msg => ({
         role: msg.role,
         content: msg.content
