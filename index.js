@@ -1044,8 +1044,8 @@ client.on('interactionCreate', async interaction => {
       });
     } else if (subcommand === 'setpersonality') {
       const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-      const personality = interaction.options.getString('personality');
-      const resetToDefault = interaction.options.getBoolean('reset_to_default');
+      const personality = interaction.options.getString('custom_personality');
+      const resetToDefault = interaction.options.getBoolean('default');
 
       console.log(`setpersonality command received: personality=${personality}, resetToDefault=${resetToDefault}`);
 
