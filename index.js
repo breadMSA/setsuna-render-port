@@ -846,8 +846,9 @@ client.on('interactionCreate', async interaction => {
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
     
     if (subcommand === 'activate') {
-      // Get optional model parameter
+      // Get optional model parameters
       const model = interaction.options.getString('model') || defaultModel;
+      const cerebrasModel = interaction.options.getString('cerebras_model') || defaultCerebrasModel;
       
       // Check if the selected model has API keys
       let hasKeys = false;
