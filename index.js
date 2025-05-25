@@ -1580,7 +1580,7 @@ async function callGeminiAPI(messages) {
   
   // Add system message as a user message with [system] prefix
   const systemMessage = messages.find(msg => msg.role === 'system');
-  if (systemMessage) {
+  if (systemMessage && systemMessage.content?.trim()) {
     geminiContents.push({
       role: 'user',
       parts: [{ text: `[system] ${systemMessage.content}` }]
@@ -1589,12 +1589,17 @@ async function callGeminiAPI(messages) {
   
   // Add the rest of the messages
   for (const msg of messages) {
-    if (msg.role !== 'system') {
+    if (msg.role !== 'system' && msg.content?.trim()) {
       geminiContents.push({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }]
       });
     }
+  }
+  
+  // Check if we have any valid messages
+  if (geminiContents.length === 0) {
+    throw new Error('No valid messages with content to send to Gemini API');
   }
   
   while (keysTriedCount < GEMINI_API_KEYS.length) {
