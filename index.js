@@ -2446,53 +2446,107 @@ client.on('messageCreate', async (message) => {
       
       console.log(`Detected image attachment from ${message.author.username}: \n${imageAttachmentInfo}`);
       
-      // 自動處理所有圖片附件進行內容識別，不需要關鍵詞觸發
-        // 顯示正在處理圖片識別的提示
-        const statusMessage = await message.channel.send('正在識別圖片內容，請稍候...');
+      // 自動處理所有圖片附件進行圖像理解，不需要關鍵詞觸發
+        // 顯示正在處理圖像的提示
+        const statusMessage = await message.channel.send('正在分析圖片內容，請稍候...');
         
         try {
-          // 動態導入圖片識別模塊
-          const { recognizeMultipleImages } = await import('./image_recognition.js');
+          // 導入 Google GenAI
+          const { GoogleGenAI } = await import('@google/genai');
           
-          // 收集所有圖片 URL
-          const imageUrls = Array.from(imageAttachments.values()).map(attachment => attachment.url);
+          // 獲取 Gemini API 密鑰
+          let apiKey = process.env.GEMINI_API_KEY;
+          if (!apiKey && GEMINI_API_KEYS && GEMINI_API_KEYS.length > 0) {
+            apiKey = GEMINI_API_KEYS[currentGeminiKeyIndex];
+          }
           
-          console.log(`Processing image recognition for ${imageUrls.length} images`);
+          if (!apiKey) {
+            throw new Error('No Gemini API key available');
+          }
           
-          // 使用 Google GenAI 識別圖片內容
-          const recognitionResults = await recognizeMultipleImages(imageUrls);
+          // 初始化 Google GenAI
+          const ai = new GoogleGenAI({ apiKey });
+          
+          // 處理每個圖片附件
+          const imageAnalysisResults = [];
+          for (const attachment of imageAttachments.values()) {
+            console.log(`Processing image analysis for: ${attachment.url}`);
+            
+            try {
+              // 獲取圖片數據
+              const response = await fetch(attachment.url);
+              if (!response.ok) {
+                throw new Error(`無法獲取圖片: ${response.statusText}`);
+              }
+              
+              const imageArrayBuffer = await response.arrayBuffer();
+              const base64ImageData = Buffer.from(imageArrayBuffer).toString('base64');
+              const mimeType = response.headers.get('content-type') || 'image/jpeg';
+              
+              // 使用 Gemini 2.0 Flash 模型進行圖像理解
+              const result = await ai.models.generateContent({
+                model: "gemini-2.0-flash",
+                contents: [
+                  {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: base64ImageData,
+                    },
+                  },
+                  { 
+                    text: "請詳細描述這張圖片的內容，包括：1. 圖片中的主要物體或人物 2. 場景和背景 3. 顏色和風格 4. 如果有文字，請識別並提取出來 5. 整體氛圍和感覺。請用繁體中文回答。" 
+                  }
+                ],
+              });
+              
+              if (result && result.text) {
+                imageAnalysisResults.push({
+                  url: attachment.url,
+                  analysis: result.text
+                });
+                console.log(`Image analysis completed for: ${attachment.url}`);
+              } else {
+                imageAnalysisResults.push({
+                  url: attachment.url,
+                  error: '無法分析圖片內容'
+                });
+              }
+            } catch (imageError) {
+              console.error(`Error analyzing image ${attachment.url}:`, imageError);
+              imageAnalysisResults.push({
+                url: attachment.url,
+                error: imageError.message || '圖片分析失敗'
+              });
+            }
+          }
           
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
           
-          // 處理識別結果
-          if (recognitionResults.length > 0) {
-            const successResults = recognitionResults.filter(r => r.success && r.description);
+          // 處理圖像分析結果
+          if (imageAnalysisResults.length > 0) {
+            const successResults = imageAnalysisResults.filter(r => r.analysis);
             
             if (successResults.length > 0) {
-              // 將識別結果添加到消息內容中
-              const recognitionText = successResults.map((r, index) => {
-                const imageNumber = successResults.length > 1 ? `圖片 ${index + 1}：` : '';
-                return `${imageNumber}${r.description}`;
-              }).join('\n\n');
-              
-              const recognitionInfo = `\n\n[圖片內容識別結果：\n${recognitionText}]\n\n`;
+              // 將分析結果添加到消息內容中
+              const analysisText = successResults.map(r => r.analysis).join('\n\n');
+              const analysisInfo = `\n\n[圖片內容分析:\n${analysisText}]\n\n`;
               
               // 更新消息內容
-              message.content = message.content + recognitionInfo;
+              message.content = message.content + analysisInfo;
               
-              // 保存識別結果，稍後添加到消息歷史中
-              message._recognitionInfo = recognitionInfo;
+              // 保存分析結果，稍後添加到消息歷史中
+              message._imageAnalysisInfo = analysisInfo;
               
-              console.log(`Added image recognition results to message content: ${recognitionText.substring(0, 100)}...`);
+              console.log(`Added image analysis results to message content: ${analysisText.substring(0, 100)}...`);
             } else {
-              console.log('No content could be recognized from the images');
+              console.log('No images could be analyzed');
             }
           } else {
-            console.log('No recognition results were processed');
+            console.log('No image analysis results were processed');
           }
         } catch (error) {
-          console.error('Error processing image recognition:', error);
+          console.error('Error processing image analysis:', error);
           // 刪除狀態消息
           await statusMessage.delete().catch(console.error);
         }
@@ -2714,15 +2768,15 @@ if (isReply) {
     }
   }
   
-  // 如果有圖片識別結果，將其添加到消息歷史中
-  if (message._recognitionInfo) {
+  // 如果有圖像分析結果，將其添加到消息歷史中
+  if (message._imageAnalysisInfo) {
     for (let i = 0; i < messageHistory.length; i++) {
       if (
         messageHistory[i].role === 'user' &&
         messageHistory[i].author === message.author.username
       ) {
-        messageHistory[i].content = messageHistory[i].content + message._recognitionInfo;
-          console.log(`Updated message history with image recognition results for ${message.author.username}`);
+        messageHistory[i].content = messageHistory[i].content + message._imageAnalysisInfo;
+        console.log(`Updated message history with image analysis results for ${message.author.username}`);
         break;
       }
     }
