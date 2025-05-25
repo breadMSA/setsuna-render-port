@@ -638,6 +638,30 @@ const commands = [
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('setmodel')
+        .setDescription('Set the AI model to use in this channel')
+        .addStringOption(option =>
+          option
+            .setName('cerebras_model')
+            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
+              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
+              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
+              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
+            )
+        )
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to set model for (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('setpersonality')
         .setDescription('Set a custom personality for Setsuna in a channel')
         .addChannelOption(option =>
@@ -666,25 +690,6 @@ const commands = [
             .setRequired(false)
         )
     )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
-        .addChannelOption(option =>
-          option
-            .setName('channel')
-            .setDescription('The channel to set model for (defaults to current channel)')
-            .addChannelTypes(ChannelType.GuildText)
-            .setRequired(false)
-        )
     
     .addSubcommand(subcommand =>
       subcommand
