@@ -584,18 +584,7 @@ const commands = [
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
+
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -608,18 +597,7 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
+
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -666,30 +644,8 @@ const commands = [
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
+
+
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -714,18 +670,7 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
+
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -738,18 +683,7 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
+
     )
     
     .addSubcommand(subcommand =>
@@ -763,18 +697,7 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
+
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
     
@@ -795,18 +718,7 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-        .addStringOption(option =>
-          option
-            .setName('cerebras_model')
-            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
-            .setRequired(false)
-            .addChoices(
-              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
-              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
-              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
-              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
-            )
-        )
+
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
