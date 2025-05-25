@@ -75,8 +75,14 @@ const GROQ_API_KEYS = [
   process.env.GROQ_API_KEY_3
 ].filter(key => key); // Filter out undefined/null keys
 
+const CEREBRAS_API_KEYS = [
+  process.env.CEREBRAS_API_KEY,
+  process.env.CEREBRAS_API_KEY_2,
+  process.env.CEREBRAS_API_KEY_3
+].filter(key => key); // Filter out undefined/null keys
+
 // Check if any API keys are available
-if (DEEPSEEK_API_KEYS.length === 0 && GEMINI_API_KEYS.length === 0 && CHATGPT_API_KEYS.length === 0 && TOGETHER_API_KEYS.length === 0 && GROQ_API_KEYS.length === 0) {
+if (DEEPSEEK_API_KEYS.length === 0 && GEMINI_API_KEYS.length === 0 && CHATGPT_API_KEYS.length === 0 && TOGETHER_API_KEYS.length === 0 && GROQ_API_KEYS.length === 0 && CEREBRAS_API_KEYS.length === 0) {
   console.warn('WARNING: No API KEY environment variables are set!');
   console.warn('The bot will not be able to process messages without at least one key.');
 }
@@ -87,9 +93,10 @@ let currentGeminiKeyIndex = 0;
 let currentChatGPTKeyIndex = 0;
 let currentTogetherKeyIndex = 0;
 let currentGroqKeyIndex = 0;
+let currentCerebrasKeyIndex = 0;
 
 // Default model to use
-let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'together', 'groq'
+let defaultModel = 'groq'; // Options: 'deepseek', 'gemini', 'chatgpt', 'together', 'groq', 'cerebras'
 
 // Channel model preferences
 const channelModelPreferences = new Map();
@@ -97,8 +104,14 @@ const channelModelPreferences = new Map();
 // Map to store channel-specific Groq model preferences
 const channelGroqModelPreferences = new Map();
 
+// Map to store channel-specific Cerebras model preferences
+const channelCerebrasModelPreferences = new Map();
+
 // Default Groq model to use if no preference is set
 const defaultGroqModel = 'gemma2-9b-it';
+
+// Default Cerebras model to use if no preference is set
+const defaultCerebrasModel = 'llama-4-scout-17b-16e-instruct';
 
 // Available Groq models
 const availableGroqModels = [
@@ -114,6 +127,14 @@ const availableGroqModels = [
   'compound-beta',
   'compound-beta-mini',
   'mistral-saba-24b'
+];
+
+// Available Cerebras models
+const availableCerebrasModels = [
+  'llama-4-scout-17b-16e-instruct',
+  'llama3.1-8b',
+  'llama-3.3-70b',
+  'qwen-3-32b'
 ];
 
 // Function to get next API key for each model
@@ -147,6 +168,15 @@ function getCurrentChatGPTKey() {
 function getNextGroqKey() {
   currentGroqKeyIndex = (currentGroqKeyIndex + 1) % GROQ_API_KEYS.length;
   return GROQ_API_KEYS[currentGroqKeyIndex];
+}
+
+function getCurrentCerebrasKey() {
+  return CEREBRAS_API_KEYS[currentCerebrasKeyIndex];
+}
+
+function getNextCerebrasKey() {
+  currentCerebrasKeyIndex = (currentCerebrasKeyIndex + 1) % CEREBRAS_API_KEYS.length;
+  return CEREBRAS_API_KEYS[currentCerebrasKeyIndex];
 }
 
 function getCurrentGroqKey() {
@@ -491,7 +521,8 @@ const commands = [
                   { name: 'Gemini (Fast)', value: 'gemini' },
                   { name: 'ChatGPT', value: 'chatgpt' },
                   { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
-                  { name: 'DeepSeek (Slow)', value: 'deepseek' }
+                  { name: 'DeepSeek (Slow)', value: 'deepseek' },
+                  { name: 'Cerebras', value: 'cerebras' }
                 )
         )
         .addStringOption(option =>
@@ -541,7 +572,8 @@ const commands = [
               { name: 'Gemini (Fast)', value: 'gemini' },
               { name: 'ChatGPT', value: 'chatgpt' },
               { name: 'Together AI (Llama-3.3-70B-Instruct-Turbo)', value: 'together' },
-              { name: 'DeepSeek (Slow)', value: 'deepseek' }
+              { name: 'DeepSeek (Slow)', value: 'deepseek' },
+              { name: 'Cerebras', value: 'cerebras' }
             )
         )
         .addStringOption(option =>
@@ -562,6 +594,18 @@ const commands = [
               { name: 'compound-beta', value: 'compound-beta' },
               { name: 'compound-beta-mini', value: 'compound-beta-mini' },
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('cerebras_model')
+            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
+              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
+              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
+              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
             )
         )
         .addChannelOption(option =>
@@ -744,7 +788,10 @@ client.on('interactionCreate', async interaction => {
         case 'groq':
           hasKeys = GROQ_API_KEYS.length > 0;
           break;
-      case 'together':
+        case 'cerebras':
+          hasKeys = CEREBRAS_API_KEYS.length > 0;
+          break;
+        case 'together':
           hasKeys = TOGETHER_API_KEYS.length > 0;
           break;
       }
@@ -811,7 +858,10 @@ client.on('interactionCreate', async interaction => {
         case 'groq':
           hasKeys = GROQ_API_KEYS.length > 0;
           break;
-      case 'together':
+        case 'cerebras':
+          hasKeys = CEREBRAS_API_KEYS.length > 0;
+          break;
+        case 'together':
           hasKeys = TOGETHER_API_KEYS.length > 0;
           break;
       }
@@ -839,6 +889,21 @@ client.on('interactionCreate', async interaction => {
         } else {
           // If no specific Groq model is selected, use default
           channelGroqModelPreferences.set(targetChannel.id, defaultGroqModel);
+        }
+      }
+      
+      // If Cerebras is selected and a specific Cerebras model is provided, save it
+      if (model === 'cerebras') {
+        const cerebrasModel = interaction.options.getString('cerebras_model');
+        if (cerebrasModel) {
+          channelCerebrasModelPreferences.set(targetChannel.id, cerebrasModel);
+          // 立即保存頻道配置到 JSON 文件
+          saveActiveChannels();
+          await interaction.reply(`Alright, I will be using Cerebras with model ${cerebrasModel} in ${targetChannel}!`);
+          return;
+        } else {
+          // If no specific Cerebras model is selected, use default
+          channelCerebrasModelPreferences.set(targetChannel.id, defaultCerebrasModel);
         }
       }
       
@@ -876,6 +941,10 @@ client.on('interactionCreate', async interaction => {
         case 'groq':
           const groqModel = channelGroqModelPreferences.get(targetChannel.id) || defaultGroqModel;
           modelInfo = `Groq (${groqModel})`;
+          break;
+        case 'cerebras':
+          const cerebrasModel = channelCerebrasModelPreferences.get(targetChannel.id) || defaultCerebrasModel;
+          modelInfo = `Cerebras (${cerebrasModel})`;
           break;
         case 'gemini':
           modelInfo = 'Gemini';
@@ -1197,6 +1266,61 @@ async function callGroqAPI(messages, channelId) {
   
   // If we get here, all keys failed
   throw lastError || new Error('All Groq API keys failed');
+}
+
+async function callCerebrasAPI(messages, channelId) {
+  // Try all available Cerebras keys until one works
+  let lastError = null;
+  const initialKeyIndex = currentCerebrasKeyIndex;
+  let keysTriedCount = 0;
+  
+  // Get the preferred Cerebras model for this channel or use default
+  const preferredCerebrasModel = channelCerebrasModelPreferences.get(channelId) || defaultCerebrasModel;
+  
+  // Import Cerebras SDK directly
+  const { CerebrasCloud } = await import('@cerebras/cerebras_cloud_sdk');
+  
+  while (keysTriedCount < CEREBRAS_API_KEYS.length) {
+    try {
+      // Initialize Cerebras client
+      const cerebras = new CerebrasCloud({
+        apiKey: getCurrentCerebrasKey()
+      });
+      
+      // Call Cerebras API with the preferred model
+      const completion = await cerebras.chat.completions.create({
+        messages: messages,
+        model: preferredCerebrasModel,
+        max_tokens: 500 // Reduced from 1000 to make responses shorter
+      });
+      
+      // Check for empty response
+      if (!completion || !completion.choices || !completion.choices[0] || !completion.choices[0].message) {
+        // Try next key
+        lastError = new Error('Empty response from Cerebras API');
+        getNextCerebrasKey();
+        keysTriedCount++;
+        console.log(`Cerebras API key ${currentCerebrasKeyIndex + 1}/${CEREBRAS_API_KEYS.length} returned empty response`);
+        continue;
+      }
+      
+      // Log which Cerebras model was used
+      console.log(`Used Cerebras model: ${preferredCerebrasModel}`);
+      
+      // Success! Return the response
+      return completion.choices[0].message.content;
+      
+    } catch (error) {
+      // Try next key
+      lastError = error;
+      getNextCerebrasKey();
+      keysTriedCount++;
+      console.log(`Cerebras API key ${currentCerebrasKeyIndex + 1}/${CEREBRAS_API_KEYS.length} error: ${error.message}`);
+    }
+  }
+  
+  // If we get here, all keys failed
+  throw lastError || new Error('All Cerebras API keys failed');
 }
 
 async function callDeepseekAPI(messages) {
@@ -2880,6 +3004,19 @@ if (isReply) {
           }
         }
         break;
+
+      case 'cerebras':
+        if (CEREBRAS_API_KEYS.length > 0) {
+          try {
+            response = await callCerebrasAPI(formattedMessages, message.channelId);
+            const cerebrasModel = channelCerebrasModelPreferences.get(message.channelId) || defaultCerebrasModel;
+            modelUsed = `Cerebras (${cerebrasModel})`;
+          } catch (error) {
+            console.log('Cerebras API error:', error.message);
+            // Will fall back to other models
+          }
+        }
+        break;
         
       case 'together':
         if (TOGETHER_API_KEYS.length > 0) {
@@ -2906,6 +3043,17 @@ if (isReply) {
           modelUsed = `Groq (${groqModel})`;
         } catch (error) {
           console.log('Groq API fallback error:', error.message);
+        }
+      }
+      
+      // Try Cerebras API if not already tried and keys are available
+      if (!response && preferredModel !== 'cerebras' && CEREBRAS_API_KEYS.length > 0) {
+        try {
+          response = await callCerebrasAPI(formattedMessages, message.channelId);
+          const cerebrasModel = channelCerebrasModelPreferences.get(message.channelId) || defaultCerebrasModel;
+          modelUsed = `Cerebras (${cerebrasModel})`;
+        } catch (error) {
+          console.log('Cerebras API fallback error:', error.message);
         }
       }
       
