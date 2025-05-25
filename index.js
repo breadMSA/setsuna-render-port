@@ -2529,7 +2529,15 @@ client.on('messageCreate', async (message) => {
             
             if (successResults.length > 0) {
               // 將圖片 URL 添加到消息內容中，使用 Setsuna 能夠識別的格式
-              const imageUrls = successResults.map(r => r.url).join(', ');
+              // 確保URL格式正確，移除可能的分號和反引號
+              const imageUrls = successResults.map(r => {
+                let url = r.url;
+                // 移除URL末尾可能的分號
+                if (url.endsWith(';')) {
+                  url = url.slice(0, -1);
+                }
+                return url;
+              }).join(', ');
               const analysisInfo = `\n\n[IMAGE SHARED BY ${message.author.username}: ${imageUrls}]\n\n`;
               
               // 更新消息內容
