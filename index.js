@@ -2538,7 +2538,7 @@ client.on('messageCreate', async (message) => {
               // 保存分析結果，稍後添加到消息歷史中
               message._imageAnalysisInfo = analysisInfo;
               
-              console.log(`Added image analysis results to message content: ${analysisText.substring(0, 100)}...`);
+              console.log(`Added image URL to message content: ${analysisInfo.substring(0, 100)}...`);
             } else {
               console.log('No images could be analyzed');
             }
