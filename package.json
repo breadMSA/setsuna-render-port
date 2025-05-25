@@ -18,7 +18,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@cerebras/cerebras_cloud_sdk": "^0.1.0",
+    "@cerebras/cerebras_cloud_sdk": "^1.35.0",
     "@google/genai": "^1.0.1",
     "@google/generative-ai": "^0.2.1",
     "@octokit/rest": "^21.1.1",
