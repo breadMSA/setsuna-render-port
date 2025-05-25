@@ -1,6 +1,6 @@
 // 圖片識別模塊 - 使用 Google GenAI 的圖像理解功能
-const { GoogleGenAI, createUserContent } = require('@google/genai');
-const fetch = require('node-fetch');
+import { GoogleGenerativeAI } from '@google/genai';
+import fetch from 'node-fetch';
 
 // 從環境變數或配置中獲取 API 密鑰
 let GEMINI_API_KEYS = [];
@@ -157,7 +157,7 @@ async function recognizeMultipleImages(imageUrls) {
   return results;
 }
 
-module.exports = {
+export {
   recognizeImageContent,
   recognizeMultipleImages
 };

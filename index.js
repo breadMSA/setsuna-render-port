@@ -2714,15 +2714,15 @@ if (isReply) {
     }
   }
   
-  // 如果有 OCR 識別結果，將其添加到消息歷史中
-  if (message._ocrInfo) {
+  // 如果有圖片識別結果，將其添加到消息歷史中
+  if (message._recognitionInfo) {
     for (let i = 0; i < messageHistory.length; i++) {
       if (
         messageHistory[i].role === 'user' &&
         messageHistory[i].author === message.author.username
       ) {
-        messageHistory[i].content = messageHistory[i].content + message._ocrInfo;
-          console.log(`Updated message history with OCR results for ${message.author.username}`);
+        messageHistory[i].content = messageHistory[i].content + message._recognitionInfo;
+          console.log(`Updated message history with image recognition results for ${message.author.username}`);
         break;
       }
     }
