@@ -659,18 +659,18 @@ const commands = [
       subcommand
         .setName('setpersonality')
         .setDescription('Set a custom personality for Setsuna in a channel')
+        .addStringOption(option =>
+          option
+            .setName('personality')
+            .setDescription('The custom personality prompt for Setsuna')
+            .setRequired(true)
+        )
         .addChannelOption(option =>
           option
             .setName('channel')
             .setDescription('The channel to set personality for (defaults to current channel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
-        )
-        .addStringOption(option =>
-          option
-            .setName('personality')
-            .setDescription('The custom personality prompt for Setsuna')
-            .setRequired(true)
         )
     )
     .addSubcommand(subcommand =>
