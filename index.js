@@ -2536,6 +2536,8 @@ client.on('messageCreate', async (message) => {
                 if (url.endsWith(';')) {
                   url = url.slice(0, -1);
                 }
+                // 移除URL中可能的反引號
+                url = url.replace(/`/g, '');
                 return url;
               }).join(', ');
               const analysisInfo = `\n\n[IMAGE SHARED BY ${message.author.username}: ${imageUrls}]\n\n`;
