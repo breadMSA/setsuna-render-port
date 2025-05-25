@@ -1047,6 +1047,8 @@ client.on('interactionCreate', async interaction => {
       const personality = interaction.options.getString('personality');
       const resetToDefault = interaction.options.getBoolean('reset_to_default');
 
+      console.log(`setpersonality command received: personality=${personality}, resetToDefault=${resetToDefault}`);
+
       // Check if the channel is active
       if (!activeChannels.has(targetChannel.id)) {
         await interaction.reply({
