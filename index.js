@@ -654,6 +654,7 @@ const commands = [
               { name: 'qwen-3-32b', value: 'qwen-3-32b' }
             )
         )
+    )
     .addSubcommand(subcommand =>
       subcommand
         .setName('setpersonality')
@@ -722,7 +723,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName('contact')
     .setDescription('Get information on how to contact the bot developer'),
-)];
+];
 
 // Register slash commands when the bot starts
 client.once('ready', async () => {
