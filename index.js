@@ -910,7 +910,8 @@ client.on('interactionCreate', async interaction => {
         'gemini': 'Gemini',
         'chatgpt': 'ChatGPT',
         'together': 'Together AI',
-        'groq': 'Groq (Llama-3.1)'
+        'groq': 'Groq (Llama-3.1)',
+        'cerebras': 'Cerebras'
       };
       
       await interaction.reply(`Alright nerds, I'm here to party! Ready to chat in ${targetChannel} using ${modelNames[model]} model~`);
@@ -1005,7 +1006,8 @@ client.on('interactionCreate', async interaction => {
         'gemini': 'Gemini',
         'chatgpt': 'ChatGPT',
         'together': 'Together AI',
-        'groq': 'Groq (Llama-3.1)'
+        'groq': 'Groq (Llama-3.1)',
+        'cerebras': 'Cerebras'
       };
       
       await interaction.reply(`Alright, I will be using ${modelNames[model]} model in ${targetChannel}!`);  
