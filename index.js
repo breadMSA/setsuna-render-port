@@ -615,6 +615,13 @@ const commands = [
               { name: 'Cerebras', value: 'cerebras' }
             )
         )
+        .addChannelOption(option =>
+          option
+            .setName('channel')
+            .setDescription('The channel to set model for (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
         .addStringOption(option =>
           option
             .setName('groq_model')
@@ -635,11 +642,6 @@ const commands = [
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('setmodel')
-        .setDescription('Set the AI model to use in this channel')
         .addStringOption(option =>
           option
             .setName('cerebras_model')
@@ -652,14 +654,6 @@ const commands = [
               { name: 'qwen-3-32b', value: 'qwen-3-32b' }
             )
         )
-        .addChannelOption(option =>
-          option
-            .setName('channel')
-            .setDescription('The channel to set model for (defaults to current channel)')
-            .addChannelTypes(ChannelType.GuildText)
-            .setRequired(false)
-        )
-    )
     .addSubcommand(subcommand =>
       subcommand
         .setName('setpersonality')
@@ -728,7 +722,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName('contact')
     .setDescription('Get information on how to contact the bot developer'),
-];
+)];
 
 // Register slash commands when the bot starts
 client.once('ready', async () => {
