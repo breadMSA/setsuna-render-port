@@ -661,9 +661,15 @@ const commands = [
         .setDescription('Set a custom personality for Setsuna in a channel')
         .addStringOption(option =>
           option
-            .setName('personality')
+            .setName('custom_personality')
             .setDescription('The custom personality prompt for Setsuna')
-            .setRequired(true)
+            .setRequired(false)
+        )
+        .addBooleanOption(option =>
+          option
+            .setName('default')
+            .setDescription('Set to true to reset the personality to default')
+            .setRequired(false)
         )
         .addChannelOption(option =>
           option
@@ -1039,7 +1045,8 @@ client.on('interactionCreate', async interaction => {
     } else if (subcommand === 'setpersonality') {
       const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
       const personality = interaction.options.getString('personality');
-      
+      const resetToDefault = interaction.options.getBoolean('reset_to_default');
+
       // Check if the channel is active
       if (!activeChannels.has(targetChannel.id)) {
         await interaction.reply({
@@ -1048,16 +1055,42 @@ client.on('interactionCreate', async interaction => {
         });
         return;
       }
-      
-      // Set the personality preference for this channel
-      channelPersonalityPreferences.set(targetChannel.id, personality);
+
+      // Check for mutually exclusive options or no options
+      if (personality && resetToDefault) {
+        await interaction.reply({
+          content: 'Please provide either a personality or choose to reset to default, not both.',
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (!personality && !resetToDefault) {
+        await interaction.reply({
+          content: 'Please provide a personality to set or choose to reset to default.',
+          ephemeral: true
+        });
+        return;
+      }
+
+      let replyContent;
+
+      if (resetToDefault) {
+        // Remove the personality preference for this channel
+        channelPersonalityPreferences.delete(targetChannel.id);
+        replyContent = `My personality in ${targetChannel} has been reset to default.`;
+      } else if (personality) {
+        // Set the personality preference for this channel
+        channelPersonalityPreferences.set(targetChannel.id, personality);
+        replyContent = `My personality has been updated in ${targetChannel}! I'll use this personality for future conversations.`;
+      }
       
       // Save to file
       saveActiveChannels();
       
       // Reply with confirmation
       await interaction.reply({
-        content: `My personality has been updated in ${targetChannel}! I'll use this personality for future conversations.`,
+        content: replyContent,
         ephemeral: true
       });
     } else if (subcommand === 'checkpersonality') {
