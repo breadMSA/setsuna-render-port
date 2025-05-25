@@ -2528,27 +2528,20 @@ client.on('messageCreate', async (message) => {
             const successResults = imageAnalysisResults.filter(r => r.analysis);
             
             if (successResults.length > 0) {
-              // 將圖片 URL 添加到消息內容中，使用 Setsuna 能夠識別的格式
-              // 確保URL格式正確，移除可能的分號和反引號
-              const imageUrls = successResults.map(r => {
-                let url = r.url;
-                // 移除URL末尾可能的分號
-                if (url.endsWith(';')) {
-                  url = url.slice(0, -1);
-                }
-                // 移除URL中可能的反引號
-                url = url.replace(/`/g, '');
-                return url;
-              }).join(', ');
-              const analysisInfo = `\n\n[IMAGE SHARED BY ${message.author.username}: ${imageUrls}]\n\n`;
+              // 將分析結果添加到消息內容中
+              const analysisText = successResults.map(r => r.analysis).join('\n\n');
+              const analysisInfo = `\n\n[圖片內容分析:\n${analysisText}]\n\n`;
               
-              // 更新消息內容
-              message.content = message.content + analysisInfo;
+              // 更新消息內容 - 確保 AI 能看到圖片分析結果
+              message.content = `${message.content}${analysisInfo}`;
+              
+              // 直接發送一條系統消息給用戶，顯示圖片分析結果
+              await message.channel.send(`**圖片分析結果:**\n${analysisText}`);
               
               // 保存分析結果，稍後添加到消息歷史中
               message._imageAnalysisInfo = analysisInfo;
               
-              console.log(`Added image URL to message content: ${analysisInfo.substring(0, 100)}...`);
+              console.log(`Added image analysis results to message content: ${analysisText.substring(0, 100)}...`);
             } else {
               console.log('No images could be analyzed');
             }
