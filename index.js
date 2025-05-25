@@ -107,9 +107,6 @@ const channelGroqModelPreferences = new Map();
 // Map to store channel-specific Cerebras model preferences
 const channelCerebrasModelPreferences = new Map();
 
-// Map to store channel-specific personality preferences
-const channelPersonalityPreferences = new Map();
-
 // Default Groq model to use if no preference is set
 const defaultGroqModel = 'gemma2-9b-it';
 
@@ -291,13 +288,8 @@ async function loadActiveChannels() {
             channelGroqModelPreferences.set(channelId, config.groqModel);
           }
           
-          // Extract personality preference if it exists
-          if (config.personality) {
-            channelPersonalityPreferences.set(channelId, config.personality);
-          }
-          
-          // Remove model, groqModel, and personality from config to avoid duplication
-          const { model, groqModel, personality, ...restConfig } = config;
+          // Remove model and groqModel from config to avoid duplication
+          const { model, groqModel, ...restConfig } = config;
           activeChannels.set(channelId, restConfig);
         } else {
           activeChannels.set(channelId, config);
@@ -334,13 +326,8 @@ async function loadActiveChannels() {
               channelGroqModelPreferences.set(channelId, config.groqModel);
             }
             
-            // Extract personality preference if it exists
-            if (config.personality) {
-              channelPersonalityPreferences.set(channelId, config.personality);
-            }
-            
-            // Remove model, groqModel, and personality from config to avoid duplication
-            const { model, groqModel, personality, ...restConfig } = config;
+            // Remove model and groqModel from config to avoid duplication
+            const { model, groqModel, ...restConfig } = config;
             activeChannels.set(channelId, restConfig);
           } else {
             activeChannels.set(channelId, config);
@@ -374,13 +361,8 @@ async function loadActiveChannels() {
               channelGroqModelPreferences.set(channelId, config.groqModel);
             }
             
-            // Extract personality preference if it exists
-            if (config.personality) {
-              channelPersonalityPreferences.set(channelId, config.personality);
-            }
-            
-            // Remove model, groqModel, and personality from config to avoid duplication
-            const { model, groqModel, personality, ...restConfig } = config;
+            // Remove model and groqModel from config to avoid duplication
+            const { model, groqModel, ...restConfig } = config;
             activeChannels.set(channelId, restConfig);
           } else {
             activeChannels.set(channelId, config);
@@ -407,8 +389,7 @@ async function saveActiveChannels() {
       data[channelId] = {
         ...config,
         model: channelModelPreferences.get(channelId) || defaultModel,
-        groqModel: channelGroqModelPreferences.get(channelId) || defaultGroqModel,
-        personality: channelPersonalityPreferences.get(channelId) || null
+        groqModel: channelGroqModelPreferences.get(channelId) || defaultGroqModel
       };
     }
     
@@ -639,36 +620,6 @@ const commands = [
       subcommand
         .setName('checkmodel')
         .setDescription('Check which AI model is currently being used in a channel')
-        .addChannelOption(option =>
-          option
-            .setName('channel')
-            .setDescription('The channel to check (defaults to current channel)')
-            .addChannelTypes(ChannelType.GuildText)
-            .setRequired(false)
-        )
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('setpersonality')
-        .setDescription('Set a custom personality for Setsuna in this channel')
-        .addStringOption(option =>
-          option
-            .setName('personality')
-            .setDescription('The custom personality settings (leave empty to reset to default)')
-            .setRequired(false)
-        )
-        .addChannelOption(option =>
-          option
-            .setName('channel')
-            .setDescription('The channel to set personality for (defaults to current channel)')
-            .addChannelTypes(ChannelType.GuildText)
-            .setRequired(false)
-        )
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('checkpersonality')
-        .setDescription('Check the current personality settings for Setsuna in this channel')
         .addChannelOption(option =>
           option
             .setName('channel')
@@ -997,87 +948,6 @@ client.on('interactionCreate', async interaction => {
           break;
         case 'gemini':
           modelInfo = 'Gemini';
-    } if (subcommand === 'setpersonality') {
-      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-      const customPersonality = interaction.options.getString('personality');
-      
-      // Check if the channel is active
-      if (!activeChannels.has(targetChannel.id)) {
-        await interaction.reply({
-          content: `I haven't been activated in ${targetChannel}! Use \`/setsuna activate\` to activate me first.`,
-          flags: 64
-        });
-        return;
-      }
-      
-      // Check if user has Manage Channel permissions
-      if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) {
-        await interaction.reply({
-          content: `You need Manage Channel permissions to change my personality settings!`,
-          flags: 64
-        });
-        return;
-      }
-      
-      if (!customPersonality) {
-        // Reset to default personality
-        channelPersonalityPreferences.delete(targetChannel.id);
-        saveActiveChannels();
-        await interaction.reply(`Personality reset to default in ${targetChannel}!`);
-      } else {
-        // Set custom personality
-        channelPersonalityPreferences.set(targetChannel.id, customPersonality);
-        saveActiveChannels();
-        await interaction.reply(`Custom personality set in ${targetChannel}!`);
-      }
-    } else if (subcommand === 'checkpersonality') {
-      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-      
-      // Check if the channel is active
-      if (!activeChannels.has(targetChannel.id)) {
-        await interaction.reply({
-          content: `I haven't been activated in ${targetChannel}! Use \`/setsuna activate\` to activate me first.`,
-          flags: 64
-        });
-        return;
-      }
-      
-      // Get the current personality for the channel
-      const customPersonality = channelPersonalityPreferences.get(targetChannel.id);
-      
-      if (!customPersonality) {
-        await interaction.reply(`I'm using the default personality in ${targetChannel}.`);
-      } else {
-        await interaction.reply(`Custom personality in ${targetChannel}:\n\n\`\`\`\n${customPersonality}\n\`\`\``);
-      }
-    } else if (subcommand === 'checkmodel') {
-      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-      
-      // Check if the channel is active
-      if (!activeChannels.has(targetChannel.id)) {
-        await interaction.reply({
-          content: `I haven't been activated in ${targetChannel}! Use \`/setsuna activate\` to activate me first.`,
-          flags: 64
-        });
-        return;
-      }
-      
-      // Get the current model for the channel
-      const currentModel = channelModelPreferences.get(targetChannel.id) || defaultModel;
-      let modelInfo = '';
-      
-      // Get model-specific information
-      switch (currentModel) {
-        case 'groq':
-          const groqModel = channelGroqModelPreferences.get(targetChannel.id) || defaultGroqModel;
-          modelInfo = `Groq (${groqModel})`;
-          break;
-        case 'cerebras':
-          const cerebrasModel = channelCerebrasModelPreferences.get(targetChannel.id) || defaultCerebrasModel;
-          modelInfo = `Cerebras (${cerebrasModel})`;
-          break;
-        case 'gemini':
-          modelInfo = 'Gemini';
           break;
         case 'chatgpt':
           modelInfo = 'ChatGPT';
@@ -1186,7 +1056,7 @@ client.on('interactionCreate', async interaction => {
     
     await interaction.reply({ embeds: [contactEmbed] });
   }
-}};
+}});
 
 // Personality prompt for Setsuna
 const setsunaPersonality = `
@@ -3067,13 +2937,9 @@ if (isReply) {
   
   // Process with selected API
   try {
-    // Get channel's custom personality or use default
-    const customPersonality = channelPersonalityPreferences.get(message.channelId);
-    const currentPersonality = customPersonality || setsunaPersonality;
-    
     // Add personality prompt as system message
     const formattedMessages = [
-      { role: 'system', content: currentPersonality },
+      { role: 'system', content: setsunaPersonality },
       ...messageHistory.map(msg => ({
         role: msg.role,
         content: msg.content
@@ -3285,4 +3151,4 @@ console.log('Connecting to Discord...');
 client.login(DISCORD_TOKEN).catch(error => {
   console.error('Failed to login to Discord:', error);
   process.exit(1);
-})})
+});
