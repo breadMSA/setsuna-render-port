@@ -2535,11 +2535,34 @@ client.on('messageCreate', async (message) => {
               // 更新消息內容 - 確保 AI 能看到圖片分析結果
               message.content = `${message.content}${analysisInfo}`;
               
-              // 直接發送一條系統消息給用戶，顯示圖片分析結果
-              await message.channel.send(`**圖片分析結果:**\n${analysisText}`);
-              
               // 保存分析結果，稍後添加到消息歷史中
               message._imageAnalysisInfo = analysisInfo;
+              
+              // 立即將分析結果添加到消息歷史記錄中
+              if (channelConfig && channelConfig.messageHistory) {
+                let foundUserMessage = false;
+                for (let i = 0; i < channelConfig.messageHistory.length; i++) {
+                  if (
+                    channelConfig.messageHistory[i].role === 'user' &&
+                    channelConfig.messageHistory[i].author === message.author.username
+                  ) {
+                    channelConfig.messageHistory[i].content = channelConfig.messageHistory[i].content + analysisInfo;
+                    console.log(`Immediately updated message history with image analysis for ${message.author.username}`);
+                    foundUserMessage = true;
+                    break;
+                  }
+                }
+                
+                // 如果在歷史記錄中找不到該用戶的消息，則添加一個新的消息
+                if (!foundUserMessage) {
+                  channelConfig.messageHistory.push({
+                    role: 'user',
+                    author: message.author.username,
+                    content: `[IMAGE SHARED BY ${message.author.username}]${analysisInfo}`
+                  });
+                  console.log(`Added new message history entry with image analysis for ${message.author.username}`);
+                }
+              }
               
               console.log(`Added image analysis results to message content: ${analysisText.substring(0, 100)}...`);
             } else {
