@@ -1197,16 +1197,24 @@ client.on('interactionCreate', async interaction => {
       description: '嗨！我是 Setsuna，一個超可愛（自稱）的 AI 聊天機器人！以下是使用我的方法：',
       fields: [
         {
-          name: '🎮 基本設定',
-          value: '管理員可以用 `/setsuna activate` 在當前頻道啟動我\n用 `/setsuna deactivate` 讓我離開頻道'
+          name: '🤖 智能對話',
+          value: '• 在已啟動的頻道直接打字跟我聊天！\n• 我會記住最近的50則對話內容\n• 能識別回覆的訊息並做出相應回應\n• 可設定個性化回覆風格'
         },
         {
-          name: '💬 聊天方式',
-          value: '在已啟動的頻道直接打字跟我聊天了！\n我會記住最近的對話內容，所以可以聊得很順暢喔！\n我能識別你回覆的訊息，並根據回覆內容做出相應回應！\n如果我偵測到你在尋找 YouTube 影片，或你直接貼上 YouTube 連結，我也會試著幫你找找看。'
+          name: '🔌 多模型支援',
+          value: '• 支援 Groq、Gemini、ChatGPT、Together AI、DeepSeek、Cerebras\n• 12種 Groq 子模型和4種 Cerebras 子模型\n• 用 `/setsuna activate` 選擇模型\n• 用 `/setsuna model` 切換模型'
         },
         {
-          name: '🎯 進階用法',
-          value: '想在特定頻道啟動/關閉我？\n用 `/setsuna activate #頻道名稱` 或 `/setsuna deactivate #頻道名稱`\n用 `/reset_chat` 重置頻道的聊天狀態'
+          name: '🎨 圖片功能',
+          value: '• 根據文字描述生成圖片\n• 識別上傳的圖片內容\n• 圖片風格轉換\n• 圖片問答功能'
+        },
+        {
+          name: '📺 YouTube 功能',
+          value: '• 解析影片連結顯示標題和簡介\n• 影片內容摘要\n• 影片內容問答\n• YouTube 影片搜尋'
+        },
+        {
+          name: '⚙️ 管理指令',
+          value: '• `/setsuna activate #頻道名稱 [模型]` - 啟動機器人\n• `/setsuna deactivate #頻道名稱` - 停用機器人\n• `/setsuna model [模型]` - 更改模型\n• `/reset_chat` - 重置聊天記錄'
         }
       ],
       footer: {
