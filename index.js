@@ -2528,11 +2528,9 @@ client.on('messageCreate', async (message) => {
             const successResults = imageAnalysisResults.filter(r => r.analysis);
             
             if (successResults.length > 0) {
-              // 將分析結果添加到消息內容中
-              const analysisText = successResults.map(r => r.analysis).join('\n\n');
-              // 使用 Setsuna 能夠識別的圖片信息格式
+              // 將圖片 URL 添加到消息內容中，使用 Setsuna 能夠識別的格式
               const imageUrls = successResults.map(r => r.url).join(', ');
-              const analysisInfo = `\n\n[IMAGE SHARED BY ${message.author.username}: ${imageUrls}]\n\n${analysisText}\n\n`;
+              const analysisInfo = `\n\n[IMAGE SHARED BY ${message.author.username}: ${imageUrls}]\n\n`;
               
               // 更新消息內容
               message.content = message.content + analysisInfo;
