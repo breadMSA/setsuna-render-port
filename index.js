@@ -584,7 +584,6 @@ const commands = [
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
-
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -597,7 +596,6 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -644,8 +642,18 @@ const commands = [
               { name: 'mistral-saba-24b', value: 'mistral-saba-24b' }
             )
         )
-
-
+        .addStringOption(option =>
+          option
+            .setName('cerebras_model')
+            .setDescription('Select a specific Cerebras model (only applies when Cerebras is selected)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'llama-4-scout-17b-16e-instruct (Default)', value: 'llama-4-scout-17b-16e-instruct' },
+              { name: 'llama3.1-8b', value: 'llama3.1-8b' },
+              { name: 'llama-3.3-70b', value: 'llama-3.3-70b' },
+              { name: 'qwen-3-32b', value: 'qwen-3-32b' }
+            )
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -670,7 +678,6 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -683,7 +690,6 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-
     )
     
     .addSubcommand(subcommand =>
@@ -697,7 +703,6 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
     
@@ -718,7 +723,6 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
@@ -845,7 +849,12 @@ client.on('interactionCreate', async interaction => {
       // Get optional model parameters
       const model = interaction.options.getString('model') || defaultModel;
       const cerebrasModel = interaction.options.getString('cerebras_model') || defaultCerebrasModel;
-      
+
+      // If Cerebras is selected and a specific Cerebras model is provided, save it
+      if (model === 'cerebras' && cerebrasModel) {
+        channelCerebrasModelPreferences.set(targetChannel.id, cerebrasModel);
+      }
+
       // Check if the selected model has API keys
       let hasKeys = false;
       switch (model) {
