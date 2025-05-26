@@ -1488,7 +1488,13 @@ async function callCerebrasAPI(messages, channelId) {
       
       // Call Cerebras API with the preferred model
       const completion = await cerebras.chat.completions.create({
-        messages: messages,
+        messages: [
+          {
+            role: 'system',
+            content: '你是一個直接回答問題的AI助手。不要包含思考過程，不要使用<think>標籤，直接給出最終答案。'
+          },
+          ...messages
+        ],
         model: preferredCerebrasModel,
         max_tokens: 500 // Reduced from 1000 to make responses shorter
       });
