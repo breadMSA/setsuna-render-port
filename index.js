@@ -801,6 +801,8 @@ if (!process.env.YOUTUBE_API_KEY) {
 }
 
 client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
   if (interaction.commandName === 'setprofile') {
     // 檢查是否為機器人擁有者
     if (BOT_OWNER_IDS.length > 0 && !isBotOwner(interaction.user.id)) {
@@ -844,8 +846,6 @@ client.on('interactionCreate', async interaction => {
     }
     return; // Important to return after handling the command
   }
-
-  if (!interaction.isChatInputCommand()) return;
   
   if (interaction.commandName === 'setsuna') {
     // Check if user has admin permissions
