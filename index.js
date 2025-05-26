@@ -1491,7 +1491,7 @@ async function callCerebrasAPI(messages, channelId) {
         messages: [
           {
             role: 'system',
-            content: '你是一個直接回答問題的AI助手。不要包含思考過程，不要使用<think>標籤，直接給出最終答案。'
+            content: '你是一個直接回答問題的AI助手。不要包含思考過程，絕對不能使用<think>和</think>標籤，直接給出最終答案。'
           },
           ...messages
         ],
