@@ -1470,13 +1470,13 @@ async function callCerebrasAPI(messages, channelId) {
   // Get the preferred Cerebras model for this channel or use default
   const preferredCerebrasModel = channelCerebrasModelPreferences.get(channelId) || defaultCerebrasModel;
   
-  // Import Cerebras SDK using require instead of dynamic import
-  const CerebrasCloud = require('@cerebras/cerebras_cloud_sdk').CerebrasCloud;
-  
+  // Import Cerebras SDK
+  const Cerebras = require('@cerebras/cerebras_cloud_sdk');
+
   while (keysTriedCount < CEREBRAS_API_KEYS.length) {
     try {
       // Initialize Cerebras client
-      const cerebras = new CerebrasCloud({
+      const cerebras = new Cerebras({
         apiKey: getCurrentCerebrasKey()
       });
       
