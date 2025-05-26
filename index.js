@@ -845,7 +845,7 @@ client.on('interactionCreate', async interaction => {
     return; // Important to return after handling the command
   }
 
-  if (!interaction.isCommand()) return;
+  if (!interaction.isChatInputCommand()) return;
   
   if (interaction.commandName === 'setsuna') {
     // Check if user has admin permissions
@@ -1470,8 +1470,8 @@ async function callCerebrasAPI(messages, channelId) {
   // Get the preferred Cerebras model for this channel or use default
   const preferredCerebrasModel = channelCerebrasModelPreferences.get(channelId) || defaultCerebrasModel;
   
-  // Import Cerebras SDK directly
-  const { CerebrasCloud } = await import('@cerebras/cerebras_cloud_sdk');
+  // Import Cerebras SDK using require instead of dynamic import
+  const CerebrasCloud = require('@cerebras/cerebras_cloud_sdk').CerebrasCloud;
   
   while (keysTriedCount < CEREBRAS_API_KEYS.length) {
     try {
