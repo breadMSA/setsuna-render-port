@@ -495,7 +495,6 @@ async function saveActiveChannels() {
 }
 
 // Define slash commands
-// 添加 setprofile 命令定义
 const commands = [
   new SlashCommandBuilder()
     .setName('setprofile')
