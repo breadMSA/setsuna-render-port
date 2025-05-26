@@ -155,9 +155,12 @@
 
 機器人啟動後，你可以在 Discord 伺服器使用以下指令：
 
-- `/setsuna activate #頻道名稱 [模型] [groq_model]` - 在指定頻道啟用機器人，可選擇使用的模型（Groq、Gemini、ChatGPT、Together AI、DeepSeek）和特定的 Groq 模型
+- `/setsuna activate #頻道名稱 [模型] [groq_model/cerebras_model]` - 在指定頻道啟用機器人，可選擇使用的模型（Groq、Gemini、ChatGPT、Together AI、DeepSeek、Cerebras）和特定的子模型
 - `/setsuna deactivate #頻道名稱` - 在指定頻道停用機器人
-- `/setsuna model [模型] [groq_model] #頻道名稱` - 更改指定頻道使用的模型和特定的 Groq 模型
+- `/setsuna setmodel [模型] [groq_model/cerebras_model] #頻道名稱` - 更改指定頻道使用的模型和特定的子模型
+- `/setsuna checkmodel #頻道名稱` - 檢查頻道當前使用的模型
+- `/setsuna setpersonality` - 設定機器人人設，自訂機器人的回覆風格和個性
+- `/setsuna checkpersonality` - 檢查當前機器人人設
 - 若不指定 #頻道名稱，則預設為當前頻道
 - 若不指定模型，則預設使用 Groq
 - 若選擇 Groq 但不指定 groq_model，則預設使用 llama-3.1-8b-instant
@@ -189,14 +192,37 @@ A Discord AI bot that connects to LLM API and chats with users in specific chann
 
 ## Features
 
+### 🤖 Intelligent Conversation
 - Connects to Discord and responds to messages in configured channels
-- Integrates with multiple LLM APIs (Groq, Gemini, ChatGPT, Together AI, DeepSeek)
 - Provides context-aware responses by analyzing channel message history
-- Recognizes which messages did users reply to, and responds accordingly to the reply context
+- Recognizes which messages users reply to, and responds accordingly to the reply context
+- Supports long conversation memory, remembering the last 50 messages in a channel
+- Allows customizable response styles to give the bot different personalities in different channels
+
+### 🔌 Multi-Model Support
+- Integrates with multiple LLM APIs (Groq, Gemini, ChatGPT, Together AI, DeepSeek, Cerebras)
+- Allows model selection when activating channels
+- Supports selecting 12 specific Groq models and 4 Cerebras models
+- Enables switching models for channels at any time
+- Persistent model preferences across bot restarts
+
+### 🎨 Image Generation & Understanding
+- Generates images based on text descriptions
+- Identifies content in user-uploaded images
+- Supports image style transformation (e.g., oil painting style, pixel art, adding/removing objects)
+- Enables question answering based on images (e.g., "How many cats are in this picture?")
+
+### 📺 YouTube Video Understanding
+- Parses YouTube video links to display title, channel, and description
+- Provides YouTube video content summaries
+- Answers questions based on video content
+- Supports YouTube video search functionality
+
+### ⚙️ Advanced Features
 - Simple channel activation/deactivation commands
-- Model selection when activating channels
-- Supports selecting 17 specific Groq models, including llama-3.1, llama-3.3, gemma2, llama-4, and more
-- Persistent channel settings and model preferences stored on GitHub across restarts
+- Customizable bot personality settings
+- Multiple API key rotation for service stability
+- Persistent channel settings and model preferences stored on GitHub
 
 ## Invite Setsuna
 You can invite pre-built Setsuna to your Discord server using the following link:
@@ -314,12 +340,15 @@ If you have a server or computer that can run 24/7:
 
 Once the bot is running, you can use the following commands in your Discord server:
 
-- `/setsuna activate #channel-name [model] [groq_model]` - Activate the bot in designated channel with optional model selection (Groq, Gemini, ChatGPT, Together AI, DeepSeek) and specific Groq model.
+- `/setsuna activate #channel-name [model] [groq_model/cerebras_model]` - Activate the bot in designated channel with optional model selection (Groq, Gemini, ChatGPT, Together AI, DeepSeek, Cerebras) and specific submodel.
 - `/setsuna deactivate #channel-name` - Deactivate the bot in the current channel.
-- `/setsuna model [model] [groq_model] #channel-name` - Change the model and specific Groq model used in the specified channel
-- If #channel_name is not specified, defaults to the current channel
-- If model is not specified, defaults to Groq
-- If Groq is selected but no groq_model is specified, defaults to llama-3.1-8b-instant
+- `/setsuna setmodel [model] [groq_model/cerebras_model] #channel-name` - Change the model and specific submodel used in the specified channel.
+- `/setsuna checkmodel #channel-name` - Check which model is currently being used in the channel.
+- `/setsuna setpersonality` - Set the bot's personality, customize its response style and character.
+- `/setsuna checkpersonality` - Check the current bot personality settings.
+- If #channel_name is not specified, defaults to the current channel.
+- If model is not specified, defaults to Groq.
+- If Groq is selected but no groq_model is specified, defaults to llama-3.1-8b-instant.
 - `/reset_chat [channel]` - (Manage Channels permission required) Resets the chat history for Setsuna in the specified or current channel.
 
 - `/contact` - Contact the bot developer or join our community server for feedback and support
