@@ -803,6 +803,69 @@ if (!process.env.YOUTUBE_API_KEY) {
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
+  // Handle simple commands first
+  if (interaction.commandName === 'help') {
+    const helpEmbed = {
+      color: 0xFF69B4,
+      title: '✨ Setsuna 使用指南 ✨',
+      description: '嗨！我是 Setsuna，一個超可愛（自稱）的 AI 聊天機器人！以下是使用我的方法：',
+      fields: [
+        {
+          name: '🤖 智能對話',
+          value: '• 在已啟動的頻道直接打字跟我聊天！\n• 我會記住最近的50則對話內容\n• 能識別回覆的訊息並做出相應回應\n• 可設定個性化回覆風格'
+        },
+        {
+          name: '🔌 多模型支援',
+          value: '• 支援 Groq、Gemini、ChatGPT、Together AI、DeepSeek、Cerebras\n• 12種 Groq 子模型和4種 Cerebras 子模型'
+        },
+        {
+          name: '🎨 圖片生成與理解',
+          value: '• 根據文字描述生成精美圖片\n• 識別上傳的圖片內容\n• 支援圖片風格轉換（油畫風格、像素風等）\n• 圖片問答功能（分析圖片中的內容）\n• 可以對圖片進行編輯和修改'
+        },
+        {
+          name: '📺 YouTube 影片理解',
+          value: '• 解析影片連結顯示標題、頻道和簡介\n• 生成影片內容摘要\n• 根據影片內容回答問題\n• YouTube 影片搜尋功能\n• 支援多語言影片理解'
+        },
+        {
+          name: '⚙️ 管理指令',
+          value: '• `/setsuna activate #頻道名稱 [模型] [groq_model/cerebras_model]` - 啟動機器人並選擇模型\n• `/setsuna deactivate #頻道名稱` - 停用機器人\n• `/setsuna setmodel [模型] [groq_model/cerebras_model]` - 更改模型\n• `/setsuna checkmodel #頻道名稱` - 檢查頻道當前使用的模型\n• `/setsuna setpersonality` - 設定機器人人設\n• `/setsuna checkpersonality` - 檢查當前機器人人設\n• `/reset_chat [頻道]` - 重置聊天記錄\n• 頻道設定和模型偏好持久化保存'
+        },
+        {
+          name: '🔗 其他功能',
+          value: '• 可自訂義機器人人設\n• 支援多種語言對話\n• 頻道設定和模型偏好持久化保存到 GitHub\n• 多 API 密鑰輪換機制確保服務穩定'
+        }
+      ],
+      footer: {
+        text: '有任何問題都可以用 /contact 聯絡我的開發者喔！'
+      }
+    };
+    
+    return interaction.reply({ embeds: [helpEmbed] });
+  }
+  
+  if (interaction.commandName === 'contact') {
+    const contactEmbed = {
+      color: 0x7289DA,
+      title: '📬 聯絡開發者',
+      description: '有任何建議或問題嗎？以下是聯絡方式：',
+      fields: [
+        {
+          name: '💌 Discord',
+          value: 'DM `braidenexe`'
+        },
+        {
+          name: '🏠 官方伺服器',
+          value: '加入 [Setsuna Community Server](https://discord.gg/mFqpYARugw) English supported!'
+        }
+      ],
+      footer: {
+        text: '有任何問題或需求都可以找我們哦，我們會盡快回覆的！'
+      }
+    };
+    
+    return interaction.reply({ embeds: [contactEmbed] });
+  }
+
   if (interaction.commandName === 'setprofile') {
     // 檢查是否為機器人擁有者
     if (BOT_OWNER_IDS.length > 0 && !isBotOwner(interaction.user.id)) {
@@ -1190,70 +1253,7 @@ client.on('interactionCreate', async interaction => {
     
     await interaction.reply(`Chat state in ${targetChannel} has been completely reset! I'm now a brand new Setsuna with default settings.`);
     console.log(`Channel ${targetChannel.id} has been completely reset.`);
-  } else if (interaction.commandName === 'help') {
-    // 使用 deferReply 延長響應時間
-    await interaction.deferReply();
-    
-    const helpEmbed = {
-      color: 0xFF69B4,
-      title: '✨ Setsuna 使用指南 ✨',
-      description: '嗨！我是 Setsuna，一個超可愛（自稱）的 AI 聊天機器人！以下是使用我的方法：',
-      fields: [
-        {
-          name: '🤖 智能對話',
-          value: '• 在已啟動的頻道直接打字跟我聊天！\n• 我會記住最近的50則對話內容\n• 能識別回覆的訊息並做出相應回應\n• 可設定個性化回覆風格'
-        },
-        {
-          name: '🔌 多模型支援',
-          value: '• 支援 Groq、Gemini、ChatGPT、Together AI、DeepSeek、Cerebras\n• 12種 Groq 子模型和4種 Cerebras 子模型'
-        },
-        {
-          name: '🎨 圖片生成與理解',
-          value: '• 根據文字描述生成精美圖片\n• 識別上傳的圖片內容\n• 支援圖片風格轉換（油畫風格、像素風等）\n• 圖片問答功能（分析圖片中的內容）\n• 可以對圖片進行編輯和修改'
-        },
-        {
-          name: '📺 YouTube 影片理解',
-          value: '• 解析影片連結顯示標題、頻道和簡介\n• 生成影片內容摘要\n• 根據影片內容回答問題\n• YouTube 影片搜尋功能\n• 支援多語言影片理解'
-        },
-        {
-          name: '⚙️ 管理指令',
-          value: '• `/setsuna activate #頻道名稱 [模型] [groq_model/cerebras_model]` - 啟動機器人並選擇模型\n• `/setsuna deactivate #頻道名稱` - 停用機器人\n• `/setsuna setmodel [模型] [groq_model/cerebras_model]` - 更改模型\n• `/setsuna checkmodel #頻道名稱` - 檢查頻道當前使用的模型\n• `/setsuna setpersonality` - 設定機器人人設\n• `/setsuna checkpersonality` - 檢查當前機器人人設\n• `/reset_chat [頻道]` - 重置聊天記錄\n• 頻道設定和模型偏好持久化保存'
-        },
-        {
-          name: '🔗 其他功能',
-          value: '• 可自訂義機器人人設\n• 支援多種語言對話\n• 頻道設定和模型偏好持久化保存到 GitHub\n• 多 API 密鑰輪換機制確保服務穩定'
-        }
-      ],
-      footer: {
-        text: '有任何問題都可以用 /contact 聯絡我的開發者喔！'
-      }
-    };
-    
-    await interaction.editReply({ embeds: [helpEmbed] });
-  } else if (interaction.commandName === 'contact') {
-    // 使用 deferReply 延長響應時間
-    await interaction.deferReply();
-    
-    const contactEmbed = {
-      color: 0x7289DA,
-      title: '📬 聯絡開發者',
-      description: '有任何建議或問題嗎？以下是聯絡方式：',
-      fields: [
-        {
-          name: '💌 Discord',
-          value: 'DM `braidenexe`'
-        },
-        {
-          name: '🏠 官方伺服器',
-          value: '加入 [Setsuna Community Server](https://discord.gg/mFqpYARugw) English supported!'
-        }
-      ],
-      footer: {
-        text: '有任何問題或需求都可以找我們哦，我們會盡快回覆的！'
-      }
-    };
-    
-    await interaction.editReply({ embeds: [contactEmbed] });
+
   }
 }});
 
