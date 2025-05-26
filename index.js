@@ -1191,6 +1191,9 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply(`Chat state in ${targetChannel} has been completely reset! I'm now a brand new Setsuna with default settings.`);
     console.log(`Channel ${targetChannel.id} has been completely reset.`);
   } else if (interaction.commandName === 'help') {
+    // 使用 deferReply 延長響應時間
+    await interaction.deferReply();
+    
     const helpEmbed = {
       color: 0xFF69B4,
       title: '✨ Setsuna 使用指南 ✨',
@@ -1226,8 +1229,11 @@ client.on('interactionCreate', async interaction => {
       }
     };
     
-    await interaction.reply({ embeds: [helpEmbed] });
+    await interaction.editReply({ embeds: [helpEmbed] });
   } else if (interaction.commandName === 'contact') {
+    // 使用 deferReply 延長響應時間
+    await interaction.deferReply();
+    
     const contactEmbed = {
       color: 0x7289DA,
       title: '📬 聯絡開發者',
@@ -1247,7 +1253,7 @@ client.on('interactionCreate', async interaction => {
       }
     };
     
-    await interaction.reply({ embeds: [contactEmbed] });
+    await interaction.editReply({ embeds: [contactEmbed] });
   }
 }});
 
