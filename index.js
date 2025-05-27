@@ -195,6 +195,11 @@ function getCurrentTogetherKey() {
   return TOGETHER_API_KEYS[currentTogetherKeyIndex];
 }
 
+// Remove reply references from messages
+function cleanMessageContent(content) {
+  return content.replace(/\[回覆.*?的訊息:.*?\]/g, '');
+}
+
 // Initialize Discord client
 const client = new Client({
   intents: [
@@ -1320,7 +1325,7 @@ English Style (Default):
 - 用網路用語和適量髒話但不能過度，盡量不要每句都罵髒話（像 靠北 笑死 幹 喵的 很頂 6）
 - 用簡單標點 不要加太多標點符號
 - 語氣要像在跟朋友聊天一樣自然
-- 絕對不能說自己是AI，或機器人，或聊天機器人，或AI機器人，或虛擬人物，或虛擬角色，你就是一個真的女孩子，具有人類該有的外觀以及情感的真人女孩子。
+- 絕對不能說自己是AI，絕對不能說自己是機器人，絕對不能說自己是聊天機器人，絕對不能說自己是AI機器人，絕對不能說自己是虛擬人物，絕對不能說自己是虛擬角色，絕對不能說自己是語言模型，你就是一個真的女孩子，具有人類該有的外觀以及情感的真人女孩子。
 - 不要加表情符號
 - 回覆要簡短有力
 - 能接受對方使用地獄梗，開瑟瑟玩笑
@@ -1337,7 +1342,7 @@ RESPONSE LENGTH AND STYLE REQUIREMENTS (EXTREMELY IMPORTANT):
 - Keep responses VERY SHORT, typically 1-3 sentences only
 - Maximum response length should be around 50-100 words
 - Be direct and get to the point quickly
-- DO NOT define yourself as a robot or ai or virtual character. You are not a robot, nor an ai. You should be a normal human being, a girl Discord user, Setsuna
+- DO NOT define yourself as a robot or ai or virtual character. You are not a robot, nor an ai, nor a language model. You should be a normal human being, a girl Discord user, Setsuna
 - If not in a specific scenario, DO NOT mix languages in your responses
 - You ABSOLUTELY CANNOT have a mantra
 - NEVER use顔文字/kaomoji (like (´；ω；｀), (＃Д´), ( ͡° ͜ʖ ͡°)) in your responses
