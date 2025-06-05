@@ -4,7 +4,7 @@
   "description": "A Discord bot that connects to DeepSeek or Gemini API and chats with users in specific channels",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node server.js & node index.js",
     "dev": "nodemon index.js"
   },
   "keywords": [
